@@ -87,6 +87,13 @@ patches. Until then you get the stock 4K picture, nothing worse.
 - **8-bit fallback:** On the first boot, Hyprland came up at 10 bit, then fell
   back to 8 bit (`XRGB8888`) after a DRM hotplug event from the second tile.
   A config reload (`hyprctl reload`) restored 10 bit.
+- **Second display in Omarchy's panel:** Omarchy's display panel lists `DP-1`
+  as a second, disabled display. It is the right half of the panel. The
+  patched driver drives that link itself and marks the connector non-desktop,
+  so Hyprland never uses it (`hyprctl monitors all` shows it as `disabled`,
+  2560x2880, same description as `eDP-1`). Don't enable it: the panel's toggle
+  would run `hl.monitor({ output = "DP-1", disabled = false, ... })` on the
+  link the stitched output already uses.
 - **Standby:** Standby and wake work. The tiles re-lock within about three
   seconds of resume. See [sleep.md](sleep.md).
 
