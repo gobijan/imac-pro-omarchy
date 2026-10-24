@@ -1,0 +1,4 @@
+# iMac Pro T2: keep the BCE VHCI root hub awake. If it autosuspends right after
+# init, the T2 never announces its internal USB devices (FaceTime camera,
+# ambient light sensor, headset) until a system resume. Waking it brings them up.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{serial}=="t2bce_vhci", TEST=="power/control", ATTR{power/control}="on"

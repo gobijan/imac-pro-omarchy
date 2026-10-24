@@ -1,0 +1,9 @@
+# Apple's firmware is not ours to publish; backups stay private.
+*.tar
+*.tar.*
+*.bin
+*.clm_blob
+*.txcap_blob
+*.hcd
+brcmfmac*
+brcmbt*

@@ -1,0 +1,3 @@
+[submodule "vendor/imac5k-universal-linux-patcher"]
+	path = vendor/imac5k-universal-linux-patcher
+	url = https://github.com/MarkPronkin/imac5k-universal-linux-patcher
