@@ -61,6 +61,16 @@ with `omarchy_monitor_scale = 2`:
 - **`cm = "dp3"`:** the panel is Display P3. Without this setting, Hyprland
   treats it as sRGB and everything looks oversaturated.
 
+A second rule keeps `DP-1`, the panel's right tile, disabled (see
+[Observed quirks](#observed-quirks)):
+
+```lua
+hl.monitor({ output = "DP-1", disabled = true })
+```
+
+Omarchy's scale buttons only change the two scale values at the top of
+`monitors.lua`. They leave `bitdepth`, `cm` and the `DP-1` rule alone.
+
 ## Verify
 
 ```bash
@@ -93,7 +103,9 @@ patches. Until then you get the stock 4K picture, nothing worse.
   so Hyprland never uses it (`hyprctl monitors all` shows it as `disabled`,
   2560x2880, same description as `eDP-1`). Don't enable it: the panel's toggle
   would run `hl.monitor({ output = "DP-1", disabled = false, ... })` on the
-  link the stitched output already uses.
+  link the stitched output already uses. `monitors.lua` therefore pins it with
+  `hl.monitor({ output = "DP-1", disabled = true })`. If it ever gets enabled,
+  `hyprctl reload` turns it off again.
 - **Standby:** Standby and wake work. The tiles re-lock within about three
   seconds of resume. See [sleep.md](sleep.md).
 
