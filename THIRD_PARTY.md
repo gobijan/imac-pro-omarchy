@@ -49,5 +49,6 @@ settings changed.
 
 ## Not included
 
-Apple's Broadcom Wi-Fi/Bluetooth firmware. `backup-firmware.sh` creates a
-private archive of your own copy, and `.gitignore` keeps it out of this repo.
+Apple's Broadcom Wi-Fi/Bluetooth firmware. `backup-firmware.sh` puts your own
+copy into a private GitHub repo or a private archive, and `.gitignore` keeps it
+out of this repo.

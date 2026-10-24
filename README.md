@@ -17,7 +17,7 @@ so a reinstall takes minutes instead of a day of research.
 | Native 5K: 5120×2880 at 60 Hz, 10 bit, Display P3 | ✅ | Patched `amdgpu` module, see [docs/display-5k.md](docs/display-5k.md) |
 | Speakers: 2 woofers + 2 tweeters | ✅ | Crossover and Apple's EQ in PipeWire, see [docs/audio.md](docs/audio.md) |
 | Headphone jack | ✅ | No jack detection; select the output by hand |
-| Wi-Fi (BCM4364) | ✅ | Needs Apple firmware. **Back it up**, see [docs/wifi-bluetooth.md](docs/wifi-bluetooth.md) |
+| Wi-Fi (BCM4364) | ✅ | Needs Apple's firmware, kept in a private repo, see [Wi-Fi firmware](#wi-fi-firmware) |
 | Bluetooth | ✅ | |
 | FaceTime HD camera, ambient light sensor | ✅ | Needs the T2 USB power rule (`./install.sh udev`) |
 | Suspend (deep S3) | ✅ | Also with the 5K patch, see [docs/sleep.md](docs/sleep.md) |
@@ -41,21 +41,28 @@ which:
 Two other Omarchy scripts add the `brcmfmac` WPA-handshake fix and the
 Apple F-key mode. This repo covers only what comes on top of all that.
 
-## Before you wipe the disk
+## Wi-Fi firmware
 
-**Back up the Wi-Fi firmware.** It is Apple's, so it can't live in this repo,
-and on the iMac Pro it can't be downloaded again without macOS
-([details](docs/wifi-bluetooth.md)).
+The Wi-Fi firmware is Apple's and may not be redistributed, so it isn't in
+this repo. On the iMac Pro it can't be downloaded again without macOS either
+([details](docs/wifi-bluetooth.md)). Once macOS is gone, your copy in
+`/lib/firmware/brcm` is the only one. Put it into a **private** GitHub repo of
+your own while it still works:
 
 ```bash
-./backup-firmware.sh backup      # writes ~/apple-brcm-firmware-<date>.tar.zst
+./backup-firmware.sh private-repo <your-user>/imac-pro-omarchy-firmware
 ```
 
-Copy the archive to a USB stick or private storage.
+`./install.sh firmware` restores it from there. By default it uses the
+maintainer's private copy. Point it at yours with
+`FIRMWARE_REPO=<your-user>/imac-pro-omarchy-firmware`. If you prefer offline
+storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
+`./backup-firmware.sh restore <archive>` puts it back.
 
 ## Setting up a fresh install
 
-1. Install Omarchy. If Wi-Fi doesn't come up, use Ethernet or USB tethering.
+1. Install Omarchy. Wi-Fi stays down until the firmware is back, so use
+   Ethernet or USB tethering.
 2. Get this repo, including the pinned 5K patcher:
 
    ```bash
@@ -63,26 +70,18 @@ Copy the archive to a USB stick or private storage.
    cd ~/Work/imac-pro-omarchy
    ```
 
-3. Restore the Wi-Fi firmware:
+3. Run everything at once: firmware, audio, the T2 USB rule and the 5K driver.
+   The script installs the GitHub CLI and asks you to log in if needed, asks
+   for your sudo password, and builds the 5K driver in 20 to 40 minutes.
+   Reboot when it finishes.
 
    ```bash
-   ./backup-firmware.sh restore /path/to/apple-brcm-firmware-<date>.tar.zst
+   ./install.sh all     # or FIRMWARE_REPO=<your-user>/<repo> ./install.sh all
    ```
 
-4. Install the audio setup and the T2 USB rule:
+   Each step also runs on its own: `firmware`, `audio`, `udev`, `display`, `5k`.
 
-   ```bash
-   ./install.sh audio udev
-   ```
-
-5. Build the 5K driver. This takes 20 to 40 minutes and asks for your sudo
-   password. Reboot when it finishes.
-
-   ```bash
-   ./install.sh 5k
-   ```
-
-6. Check everything:
+4. Check everything:
 
    ```bash
    ./check.sh
@@ -103,9 +102,9 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              audio | udev | display | 5k | all; backs up every file it replaces
+install.sh              firmware | audio | udev | display | 5k | all; backs up every file it replaces
 check.sh                read-only health check (display, audio, Wi-Fi, sleep)
-backup-firmware.sh      backup / restore Apple's Broadcom firmware
+backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins)
 config/etc/             files that go to /etc (udev rule)
 docs/                   the why and the how, one file per topic

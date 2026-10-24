@@ -14,21 +14,28 @@ redistributed. On T2 Macs the usual sources are:
   this method **does not work on iMacPro1,1**.
 
 So once macOS is gone, the files in `/lib/firmware/brcm` are your only copy.
-Save them somewhere off the disk:
+Save them somewhere off the disk. Either option below takes every Apple
+Broadcom file in `/lib/firmware/brcm` (240 files, about 25 MB). The iMac Pro
+itself uses `brcmfmac4364b2-pcie.apple,ekans.*`.
+
+**Private GitHub repo** (what `./install.sh firmware` restores from):
 
 ```bash
-./backup-firmware.sh backup               # ~/apple-brcm-firmware-<date>.tar.zst (about 7 MB)
-# copy that file to a USB stick or private storage. Never commit it.
+./backup-firmware.sh private-repo <your-user>/imac-pro-omarchy-firmware
+FIRMWARE_REPO=<your-user>/imac-pro-omarchy-firmware ./install.sh firmware   # after a reinstall
 ```
 
-After a fresh install:
+The script refuses to finish unless GitHub reports the new repo as `PRIVATE`.
+Never make it public.
+
+**Archive for a USB stick or private storage:**
 
 ```bash
+./backup-firmware.sh backup                                   # ~/apple-brcm-firmware-<date>.tar.zst, about 7 MB
 ./backup-firmware.sh restore /path/to/apple-brcm-firmware-<date>.tar.zst
 ```
 
-The archive contains every Apple Broadcom file found in `/lib/firmware/brcm`.
-The iMac Pro itself uses `brcmfmac4364b2-pcie.apple,ekans.*`.
+Both ways keep the NVRAM symlink described below.
 
 ## NVRAM symlink
 
@@ -44,8 +51,7 @@ This symlink fixed it:
 /lib/firmware/brcm/brcmfmac4364b2-pcie.apple,ekans.txt -> brcmfmac4364b2-pcie.apple,ekans-HRPN-u-7.5.txt
 ```
 
-The backup archive keeps the symlink. If you get the firmware from somewhere
-else, recreate it:
+If you get the firmware from somewhere else, recreate the symlink:
 
 ```bash
 cd /lib/firmware/brcm
