@@ -81,7 +81,7 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ```
 
    Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `display`,
-   `5k`.
+   `5k`. `./install.sh fans-stock` returns to Omarchy's own fan daemon.
 
 4. Check everything:
 
