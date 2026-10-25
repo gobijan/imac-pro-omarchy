@@ -1,0 +1,14 @@
+# Installed by imac-pro-omarchy (./install.sh fans). It takes precedence over
+# the unit in Omarchy's t2fanrd package, so package updates leave it alone.
+[Unit]
+Description=Fan daemon for T2 Macs (t2fanrd-quiet, see docs/fans.md)
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+ExecStart=/usr/local/bin/t2fanrd-quiet
+PIDFile=/run/t2fand.pid
+
+[Install]
+WantedBy=default.target
