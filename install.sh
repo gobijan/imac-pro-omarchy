@@ -2,13 +2,14 @@
 #
 # install.sh — restore this repo's iMac Pro (iMacPro1,1) setup on Omarchy.
 #
-#   ./install.sh firmware  Apple Wi-Fi/Bluetooth firmware from a private GitHub repo (sudo)
-#   ./install.sh audio     four-speaker crossover + UCM override (no sudo)
-#   ./install.sh udev      keep the T2 USB hub awake: camera, light sensor, headset (sudo)
-#   ./install.sh fans      patched t2fanrd: fans idle at 800 instead of 1100 rpm (sudo)
-#   ./install.sh display   Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
-#   ./install.sh 5k        build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all       firmware + audio + udev + fans + 5k
+#   ./install.sh firmware    Apple Wi-Fi/Bluetooth firmware from a private GitHub repo (sudo)
+#   ./install.sh audio       four-speaker crossover + UCM override (no sudo)
+#   ./install.sh udev        keep the T2 USB hub awake: camera, light sensor, headset (sudo)
+#   ./install.sh fans        patched t2fanrd: fans idle at 800 instead of 1100 rpm (sudo)
+#   ./install.sh fans-stock  back to Omarchy's own t2fanrd and fan config (sudo)
+#   ./install.sh display     Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
+#   ./install.sh 5k          build the patched amdgpu module (sudo, 20-40 min), then display
+#   ./install.sh all         firmware + audio + udev + fans + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -32,7 +33,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,11p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,12p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -142,9 +143,20 @@ do_fans() {
     put_file "$CONFIG/etc/t2fand-quiet.conf" /etc/t2fand-quiet.conf sudo
     put_file "$CONFIG/etc/systemd/system/t2fanrd.service" /etc/systemd/system/t2fanrd.service sudo
     sudo systemctl daemon-reload
-    sudo systemctl enable t2fanrd.service
+    # Omarchy enables the service; keep its enable link so fans-stock leaves nothing dangling.
+    systemctl is-enabled -q t2fanrd.service || sudo systemctl enable t2fanrd.service
     sudo systemctl restart t2fanrd.service
     say "fans: t2fanrd-quiet running; at idle both fans settle near 800 rpm"
+}
+
+do_fans_stock() {
+    [[ -e /usr/lib/systemd/system/t2fanrd.service ]] \
+        || die "fans-stock: Omarchy's t2fanrd package is not installed, so there is nothing to go back to"
+    sudo rm -f /etc/systemd/system/t2fanrd.service "$FAN_BIN" /etc/t2fand-quiet.conf
+    sudo systemctl daemon-reload
+    sudo systemctl reenable t2fanrd.service
+    sudo systemctl restart t2fanrd.service
+    say "fans-stock: Omarchy's t2fanrd running with /etc/t2fand.conf; the fans idle at 1100 rpm again"
 }
 
 do_display() {
@@ -171,6 +183,7 @@ do_5k() {
 for step in "$@"; do
     case $step in
         firmware|audio|udev|fans|display|5k) "do_$step" ;;
+        fans-stock) do_fans_stock ;;
         all) do_firmware; do_audio; do_udev; do_fans; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;

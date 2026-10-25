@@ -55,7 +55,8 @@ replace or conflict with:
 | `/etc/t2fand-quiet.conf` | Omarchy only knows `/etc/t2fand.conf` |
 
 Omarchy's `t2fanrd` package stays installed and updates as usual; its binary
-just isn't started. `./check.sh` shows whether the quiet build is the one
+just isn't started. Keep it installed: it is not in any pacman repo (it came
+with the Omarchy install), and it is the way back to stock. `./check.sh` shows whether the quiet build is the one
 running. If it ever isn't, `./install.sh fans` puts it back; running it again
 is harmless.
 
@@ -63,10 +64,12 @@ is harmless.
 ./install.sh fans
 ```
 
-To go back to the stock daemon:
+## Back to stock
 
 ```bash
-sudo rm /etc/systemd/system/t2fanrd.service /usr/local/bin/t2fanrd-quiet /etc/t2fand-quiet.conf
-sudo systemctl daemon-reload
-sudo systemctl restart t2fanrd
+./install.sh fans-stock
 ```
+
+This removes the three files above and restarts Omarchy's own t2fanrd, which
+reads Omarchy's untouched `/etc/t2fand.conf`. The fans idle at 1100 rpm again,
+exactly as on a plain Omarchy install. `./install.sh fans` switches back.
