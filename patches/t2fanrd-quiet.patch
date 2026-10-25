@@ -1,0 +1,129 @@
+Lower the idle fan speed and keep the iMac Pro under t2fanrd's control.
+
+- min_speed per fan overrides the SMC minimum (fan*_min, 1100 rpm on the iMac
+  Pro). The SMC refuses writes to fan*_min but accepts lower speeds in manual
+  mode.
+- Read /etc/t2fand-quiet.conf, so changes Omarchy makes to /etc/t2fand.conf do
+  not reach this build.
+- Read the GPU temperature from any DRM card, not only card0. On the iMac Pro the
+  Radeon Pro Vega is card1.
+- Reassert manual mode with every speed write, and write at least every 30 s. The
+  SMC falls back to automatic control after suspend.
+
+Applies to GnomedDev/t2fanrd at 48baf96. GPL-3.0-or-later, like t2fanrd.
+
+diff --git a/src/config.rs b/src/config.rs
+index 62fae5e..d765b5d 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -7,7 +7,7 @@ use crate::{fan_controller::FanController, Error, Result};
+ #[cfg(debug_assertions)]
+ const CONFIG_FILE: &str = "./t2fand.conf";
+ #[cfg(not(debug_assertions))]
+-const CONFIG_FILE: &str = "/etc/t2fand.conf";
++const CONFIG_FILE: &str = "/etc/t2fand-quiet.conf";
+ 
+ #[derive(Clone, Copy, Debug)]
+ pub enum SpeedCurve {
+@@ -44,6 +44,8 @@ pub struct FanConfig {
+     pub high_temp: u8,
+     pub speed_curve: SpeedCurve,
+     pub always_full_speed: bool,
++    /// Overrides the SMC's minimum fan speed, which cannot be lowered via sysfs.
++    pub min_speed: Option<u32>,
+ }
+ 
+ impl FanConfig {
+@@ -66,6 +68,7 @@ impl Default for FanConfig {
+             high_temp: 75,
+             speed_curve: SpeedCurve::Linear,
+             always_full_speed: false,
++            min_speed: None,
+         }
+     }
+ }
+@@ -86,6 +89,10 @@ impl TryFrom<&ini::Properties> for FanConfig {
+             high_temp: get_value(properties, "high_temp")?,
+             speed_curve: get_value(properties, "speed_curve")?,
+             always_full_speed: get_value(properties, "always_full_speed")?,
++            min_speed: properties
++                .get("min_speed")
++                .map(|value| value.parse().map_err(|_| Error::InvalidConfigValue("min_speed")))
++                .transpose()?,
+         })
+     }
+ }
+diff --git a/src/fan_controller.rs b/src/fan_controller.rs
+index 7d2927c..4dbf2fb 100644
+--- a/src/fan_controller.rs
++++ b/src/fan_controller.rs
+@@ -26,11 +26,14 @@ impl FanController {
+             path
+         }
+ 
+-        let min_speed = std::fs::read_to_string(join_suffix(path.clone(), "_min"))
+-            .map_err(Error::MinSpeedRead)?
+-            .trim()
+-            .parse()
+-            .map_err(Error::MinSpeedParse)?;
++        let min_speed = match config.min_speed {
++            Some(min_speed) => min_speed,
++            None => std::fs::read_to_string(join_suffix(path.clone(), "_min"))
++                .map_err(Error::MinSpeedRead)?
++                .trim()
++                .parse()
++                .map_err(Error::MinSpeedParse)?,
++        };
+ 
+         let max_speed = std::fs::read_to_string(join_suffix(path.clone(), "_max"))
+             .map_err(Error::MaxSpeedRead)?
+@@ -38,6 +41,10 @@ impl FanController {
+             .parse()
+             .map_err(Error::MaxSpeedParse)?;
+ 
++        if min_speed >= max_speed {
++            return Err(Error::InvalidConfigValue("min_speed"));
++        }
++
+         let mut open_options = std::fs::OpenOptions::new();
+         open_options.write(true).truncate(true);
+ 
+diff --git a/src/main.rs b/src/main.rs
+index 13b0afa..9e4d957 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -123,7 +123,7 @@ fn find_cpu_temp_file(temp_buf: &mut String) -> Result<std::fs::File> {
+ }
+ 
+ fn find_gpu_temp_file(temp_buf: &mut String) -> Result<Option<std::fs::File>> {
+-    let temps = glob::glob("/sys/class/drm/card0/device/hwmon/hwmon*/temp1_input")?;
++    let temps = glob::glob("/sys/class/drm/card[0-9]/device/hwmon/hwmon*/temp1_input")?;
+     Ok(find_temp_file(temps, temp_buf))
+ }
+ 
+@@ -150,6 +150,7 @@ fn start_temp_loop(
+     let mut last_temp = 0;
+     let mut temps = ArrayDeque::<u8, 50, arraydeque::Wrapping>::new();
+     let mut was_long_sleep = false;
++    let mut unchanged_ticks = 0;
+     while !cancellation_token.load(std::sync::atomic::Ordering::Relaxed) {
+         let cpu_temp = read_temp_file(&mut cpu_temp_file, &mut temp_buffer)?;
+         let temp = if let Some(gpu_temp_file) = &mut gpu_temp_file {
+@@ -173,12 +174,16 @@ fn start_temp_loop(
+ 
+         let sum_temp: u16 = temps.iter().map(|t| *t as u16).sum();
+         let mean_temp = sum_temp / (temps.len() as u16);
+-        if mean_temp == last_temp {
++        if mean_temp == last_temp && unchanged_ticks < 30 {
+             std::thread::sleep(std::time::Duration::from_secs(1));
+             was_long_sleep = true;
++            unchanged_ticks += 1;
+         } else {
+             last_temp = mean_temp;
++            unchanged_ticks = 0;
+             for fan in fans {
++                // The SMC falls back to automatic control after suspend, so reassert manual mode.
++                fan.set_manual(true)?;
+                 fan.set_speed(fan.calc_speed(mean_temp as u8))?;
+             }
+ 

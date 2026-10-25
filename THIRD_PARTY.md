@@ -41,6 +41,14 @@ points at
 at commit `37eef00`. Its scripts are MIT-licensed, and its kernel patches are
 GPL-2.0. See that repository for details.
 
+## t2fanrd
+
+`./install.sh fans` builds
+[GnomedDev/t2fanrd](https://github.com/GnomedDev/t2fanrd) at commit `48baf96`.
+`patches/t2fanrd-quiet.patch` changes t2fanrd's code and is GPL-3.0-or-later,
+like t2fanrd. `config/etc/systemd/system/t2fanrd.service` is based on the unit
+in Omarchy's `t2fanrd` package.
+
 ## Hyprland monitor config
 
 `config/home/.config/hypr/monitors.lua` is Omarchy's default `monitors.lua`

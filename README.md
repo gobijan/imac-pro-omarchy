@@ -22,7 +22,7 @@ so a reinstall takes minutes instead of a day of research.
 | FaceTime HD camera, ambient light sensor | ✅ | Needs the T2 USB power rule (`./install.sh udev`) |
 | Suspend (deep S3) | ✅ | Also with the 5K patch, see [docs/sleep.md](docs/sleep.md) |
 | Hibernate | ❔ | Set up by Omarchy, never tested |
-| Fan control | ✅ | Omarchy's `t2fanrd` |
+| Fan control | ✅ | Patched `t2fanrd`: idles at 800 instead of 1100 rpm, see [docs/fans.md](docs/fans.md) |
 
 Tested in October 2026 on an iMac Pro with a Radeon Pro Vega 64 and 32 GB RAM,
 running Omarchy with Limine and Hyprland 0.56.2, `linux-t2` 7.2.11 and
@@ -70,7 +70,8 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    cd ~/Work/imac-pro-omarchy
    ```
 
-3. Run everything at once: firmware, audio, the T2 USB rule and the 5K driver.
+3. Run everything at once: firmware, audio, the T2 USB rule, the fan daemon and
+   the 5K driver.
    The script installs the GitHub CLI and asks you to log in if needed, asks
    for your sudo password, and builds the 5K driver in 20 to 40 minutes.
    Reboot when it finishes.
@@ -79,7 +80,8 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ./install.sh all     # or FIRMWARE_REPO=<your-user>/<repo> ./install.sh all
    ```
 
-   Each step also runs on its own: `firmware`, `audio`, `udev`, `display`, `5k`.
+   Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `display`,
+   `5k`.
 
 4. Check everything:
 
@@ -87,7 +89,11 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ./check.sh
    ```
 
-## After every kernel update
+## After updates
+
+The fans need nothing: the quiet fan daemon lives outside pacman's reach and
+survives package and Omarchy updates ([docs/fans.md](docs/fans.md)).
+`./check.sh` confirms it.
 
 A new `linux-t2` comes with the stock GPU driver, so the panel drops back to
 4K. Reboot into the new kernel, then rebuild:
@@ -102,11 +108,12 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              firmware | audio | udev | display | 5k | all; backs up every file it replaces
-check.sh                read-only health check (display, audio, Wi-Fi, sleep)
+install.sh              firmware | audio | udev | fans | display | 5k | all; backs up every file it replaces
+check.sh                read-only health check (display, audio, Wi-Fi, fans, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins)
-config/etc/             files that go to /etc (udev rule)
+config/etc/             files that go to /etc (udev rule, fan daemon unit and config)
+patches/                t2fanrd-quiet.patch: lower idle fan speed for t2fanrd
 docs/                   the why and the how, one file per topic
 vendor/                 imac5k-universal-linux-patcher, pinned at the reviewed commit
 ```

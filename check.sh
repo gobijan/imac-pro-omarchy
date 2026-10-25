@@ -68,6 +68,16 @@ compgen -G '/lib/firmware/brcm/brcmfmac4364b2-pcie.apple,ekans*' >/dev/null \
 [[ -f /etc/udev/rules.d/90-t2-vhci-power.rules ]] && ok "T2 USB power rule installed" || meh "T2 USB power rule missing (./install.sh udev)"
 compgen -G '/dev/video*' >/dev/null && ok "FaceTime camera present" || meh "no camera device"
 
+section "Fans"
+fans=/sys/bus/acpi/devices/APP0001:00
+systemctl is-active -q t2fanrd && ok "t2fanrd running" || bad "t2fanrd not running: the SMC runs the fans on its own"
+[[ $(systemctl show -p ExecStart --value t2fanrd 2>/dev/null) == *t2fanrd-quiet* && -x /usr/local/bin/t2fanrd-quiet ]] \
+    && ok "t2fanrd-quiet in use (idle speed from /etc/t2fand-quiet.conf)" \
+    || meh "stock t2fanrd: the fans idle at the SMC minimum of 1100 rpm (./install.sh fans)"
+[[ $(cat "$fans/fan1_manual" 2>/dev/null) == 1 ]] \
+    && ok "fans at $(cat "$fans/fan1_input") and $(cat "$fans/fan2_input") rpm, set by t2fanrd" \
+    || meh "the SMC controls the fans (fan1_manual=0); t2fanrd-quiet takes over again within 30 s of a resume"
+
 section "Sleep"
 [[ $(cat /sys/power/mem_sleep 2>/dev/null) == *"[deep]"* ]] && ok "suspend uses deep (S3)" || meh "suspend mode: $(cat /sys/power/mem_sleep 2>/dev/null)"
 

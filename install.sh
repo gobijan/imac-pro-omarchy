@@ -5,9 +5,10 @@
 #   ./install.sh firmware  Apple Wi-Fi/Bluetooth firmware from a private GitHub repo (sudo)
 #   ./install.sh audio     four-speaker crossover + UCM override (no sudo)
 #   ./install.sh udev      keep the T2 USB hub awake: camera, light sensor, headset (sudo)
+#   ./install.sh fans      patched t2fanrd: fans idle at 800 instead of 1100 rpm (sudo)
 #   ./install.sh display   Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
 #   ./install.sh 5k        build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all       firmware + audio + udev + 5k
+#   ./install.sh all       firmware + audio + udev + fans + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -23,12 +24,15 @@ FIRMWARE_REPO="${FIRMWARE_REPO:-gobijan/imac-pro-omarchy-firmware}"
 FW_DIR=/lib/firmware/brcm
 UCM_SYSTEM=/usr/share/alsa/ucm2
 UCM_USER="$HOME/.config/alsa-ucm2"
+T2FANRD_URL=https://github.com/GnomedDev/t2fanrd
+T2FANRD_COMMIT=48baf962697ec3d4d969c74cf601ee8e15b7aeaa
+FAN_BIN=/usr/local/bin/t2fanrd-quiet
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,10p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,11p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -118,6 +122,31 @@ do_udev() {
     say "udev: takes effect at the next boot"
 }
 
+# The build sits outside pacman's paths and has its own unit and config, so
+# neither package updates nor Omarchy migrations undo it.
+do_fans() {
+    [[ -e /sys/bus/acpi/devices/APP0001:00/fan1_output ]] \
+        || die "fans: no T2 fan controller (APP0001:00)"
+    command -v cargo >/dev/null || sudo pacman -S --needed --noconfirm rust
+    local tmp
+    tmp="$(mktemp -d)"
+    say "fans: building t2fanrd-quiet (t2fanrd ${T2FANRD_COMMIT:0:7} + patches/t2fanrd-quiet.patch)"
+    git clone -q "$T2FANRD_URL" "$tmp/t2fanrd"
+    git -C "$tmp/t2fanrd" checkout -q "$T2FANRD_COMMIT"
+    git -C "$tmp/t2fanrd" apply "$REPO/patches/t2fanrd-quiet.patch"
+    cargo build -q --release --locked --manifest-path "$tmp/t2fanrd/Cargo.toml"
+    # Rename into place rather than overwrite the binary the daemon is running from.
+    sudo install -Dm755 "$tmp/t2fanrd/target/release/t2fanrd" "$FAN_BIN.new"
+    sudo mv -f "$FAN_BIN.new" "$FAN_BIN"
+    rm -rf -- "$tmp"
+    put_file "$CONFIG/etc/t2fand-quiet.conf" /etc/t2fand-quiet.conf sudo
+    put_file "$CONFIG/etc/systemd/system/t2fanrd.service" /etc/systemd/system/t2fanrd.service sudo
+    sudo systemctl daemon-reload
+    sudo systemctl enable t2fanrd.service
+    sudo systemctl restart t2fanrd.service
+    say "fans: t2fanrd-quiet running; at idle both fans settle near 800 rpm"
+}
+
 do_display() {
     put_file "$CONFIG/home/.config/hypr/monitors.lua" "$HOME/.config/hypr/monitors.lua"
     say "display: Hyprland reloads monitors.lua by itself"
@@ -141,8 +170,8 @@ do_5k() {
 [[ $EUID -ne 0 ]] || die "run as your desktop user; the script calls sudo itself"
 for step in "$@"; do
     case $step in
-        firmware|audio|udev|display|5k) "do_$step" ;;
-        all) do_firmware; do_audio; do_udev; do_5k ;;
+        firmware|audio|udev|fans|display|5k) "do_$step" ;;
+        all) do_firmware; do_audio; do_udev; do_fans; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;
     esac
