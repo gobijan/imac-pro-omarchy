@@ -20,7 +20,7 @@ so a reinstall takes minutes instead of a day of research.
 | Wi-Fi (BCM4364) | ✅ | Needs Apple's firmware, kept in a private repo, see [Wi-Fi firmware](#wi-fi-firmware) |
 | Bluetooth | ✅ | |
 | FaceTime HD camera, ambient light sensor | ✅ | Needs the T2 USB power rule (`./install.sh udev`) |
-| Suspend (deep S3) | ✅ | Also with the 5K patch, see [docs/sleep.md](docs/sleep.md) |
+| Suspend (deep S3) | ✅ | Also with the 5K patch. The first wake of each boot waited ~60 s for Thunderbolt; a sleep hook (`./install.sh sleep`) takes it off the bus first. The USB-C ports are dead after sleep, see [docs/sleep.md](docs/sleep.md) |
 | Hibernate | ❔ | Set up by Omarchy, never tested |
 | Fan control | ✅ | Patched `t2fanrd`: idles at 800 instead of 1100 rpm, see [docs/fans.md](docs/fans.md) |
 
@@ -80,8 +80,9 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ./install.sh all     # or FIRMWARE_REPO=<your-user>/<repo> ./install.sh all
    ```
 
-   Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `display`,
-   `5k`. `./install.sh fans-stock` returns to Omarchy's own fan daemon.
+   Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `sleep`,
+   `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own fan
+   daemon, `./install.sh sleep-stock` removes the Thunderbolt sleep hook.
 
 4. Check everything:
 
@@ -91,8 +92,9 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
 
 ## After updates
 
-The fans need nothing: the quiet fan daemon lives outside pacman's reach and
-survives package and Omarchy updates ([docs/fans.md](docs/fans.md)).
+The fans and the Thunderbolt sleep hook need nothing: both live outside
+pacman's reach and survive package and Omarchy updates
+([docs/fans.md](docs/fans.md), [docs/sleep.md](docs/sleep.md)).
 `./check.sh` confirms it.
 
 A new `linux-t2` comes with the stock GPU driver, so the panel drops back to
@@ -108,11 +110,12 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              firmware | audio | udev | fans | display | 5k | all; backs up every file it replaces
+install.sh              firmware | audio | udev | fans | sleep | display | 5k | all; backs up every file it replaces
 check.sh                read-only health check (display, audio, Wi-Fi, fans, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins)
-config/etc/             files that go to /etc (udev rule, fan daemon unit and config)
+config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config)
+config/usr/local/       the Thunderbolt sleep hook script
 patches/                t2fanrd-quiet.patch: lower idle fan speed for t2fanrd
 docs/                   the why and the how, one file per topic
 vendor/                 imac5k-universal-linux-patcher, pinned at the reviewed commit

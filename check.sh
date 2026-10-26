@@ -80,6 +80,42 @@ systemctl is-active -q t2fanrd && ok "t2fanrd running" || bad "t2fanrd not runni
 
 section "Sleep"
 [[ $(cat /sys/power/mem_sleep 2>/dev/null) == *"[deep]"* ]] && ok "suspend uses deep (S3)" || meh "suspend mode: $(cat /sys/power/mem_sleep 2>/dev/null)"
+[[ $(systemctl is-enabled imacpro-tb-sleep.service 2>/dev/null) == enabled ]] \
+    && ok "Thunderbolt is detached around sleep (imacpro-tb-sleep)" \
+    || meh "no Thunderbolt sleep hook: the first wake of each boot waits ~60 s (./install.sh sleep)"
+# Monotonic kernel timestamps stop during sleep, so this is the kernel's own resume time.
+took="$(journalctl -k -b 0 --no-pager -o json --output-fields=_SOURCE_MONOTONIC_TIMESTAMP,MESSAGE \
+    -g 'Low-level resume complete|PM: suspend exit' 2>/dev/null | python3 -I -c '
+import json, sys
+start = took = None
+for line in sys.stdin:
+    j = json.loads(line)
+    t = int(j["_SOURCE_MONOTONIC_TIMESTAMP"]) / 1e6
+    if "Low-level" in str(j.get("MESSAGE")):
+        start = t
+    elif start is not None:
+        took, start = t - start, None
+if took is not None:
+    print(f"{took:.1f}")' 2>/dev/null)"
+if [[ -z $took ]]; then
+    meh "no wake from sleep in this boot yet"
+elif (( ${took%.*} < 20 )); then
+    ok "last wake took ${took} s in the kernel"
+else
+    bad "last wake took ${took} s in the kernel: it waited for Thunderbolt (docs/sleep.md)"
+fi
+gpes=/sys/firmware/acpi/interrupts
+if read -r before _ < "$gpes/gpe_all" 2>/dev/null; then
+    sleep 1
+    read -r after _ < "$gpes/gpe_all"
+    if (( after - before > 50 )); then
+        top="$(grep -H . "$gpes"/gpe[0-9A-F][0-9A-F] | sort -t: -k2 -nr | head -n1)"
+        top=${top%%:*}
+        meh "ACPI interrupt storm: $((after - before))/s, mostly ${top##*/}; a kacpid kworker keeps one core busy and warms the fans"
+    else
+        ok "no ACPI interrupt storm ($((after - before))/s)"
+    fi
+fi
 
 printf '\n%d ok, %d warnings, %d failed\n' "$passed" "$warned" "$failed"
 (( failed == 0 ))

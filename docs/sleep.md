@@ -15,21 +15,48 @@ Omarchy's T2 setup (`/etc/limine-entry-tool.d/t2-mac.conf`) boots with
   again about three seconds after resume (`APPLE5K: link-health PASS ... 0 recovery attempts`).
   Wi-Fi reconnected and the T2 audio driver resumed.
 
-## Thunderbolt warnings on resume
+## The first wake of a boot waited a minute for Thunderbolt
 
-After sleeps longer than about a minute, the Thunderbolt driver logs about a
-dozen warnings on wake:
+The iMac Pro has two Thunderbolt 3 controllers (Alpine Ridge, behind the CPU
+root ports `05:02.0` and `05:03.0`). During deep sleep the firmware powers
+both down, and they do not come back: after wake their config space reads as
+all ones (`lspci` shows `Unknown header type 7f`), the Thunderbolt driver logs
+a dozen `tb_cfg_read: -108` warnings, and the USB-C ports stay dead until the
+next boot.
 
-```text
-WARNING: drivers/thunderbolt/ctl.c:1130 at tb_cfg_read ... tb_cfg_read: -108
-```
+On the first resume of a boot, Linux also waits for them: the kernel log
+shows a gap of 29.7 s before `pcieport 0000:06:00.0: Unable to change power
+state from D3cold to D0` and another 29.7 s before the same line for
+`0000:4c:00.0`. Measured from the kernel's own timestamps, which stop during
+sleep, from `ACPI: PM: Low-level resume complete` to `PM: suspend exit`:
 
-They appear with the stock `amdgpu` too, so they are not caused by the 5K
-patch. Most likely the firmware powers the controller down during longer
-sleeps. The Thunderbolt domains come back after resume. If a Thunderbolt device
-ever stops working after wake, the place to start is a sleep hook that unbinds
-the NHI before suspend and rebinds it after. The upstream patcher's `t2suspend`
-module contains such a hook.
+| Resume | Kernel resume time |
+|---|---|
+| First of a boot, 4 cycles 2026-10-23 to 2026-10-26 | 66.9 to 67.6 s, of that 59.4 s in the two waits |
+| Second of a boot, 2 cycles | 5.5 and 5.6 s |
+
+The second resume is fast because the controllers were already dead when
+Linux suspended them again. Only when Linux puts a live controller to sleep
+does the wake wait for it, so a controller that is no longer on the PCI bus
+is never waited for.
+
+`./install.sh sleep` installs `imacpro-tb-sleep.service`
+([unit](../config/etc/systemd/system/imacpro-tb-sleep.service),
+[script](../config/usr/local/bin/imacpro-tb-sleep)). Before every sleep it
+removes both controllers' PCI subtrees (`echo 1 > .../remove` on each
+upstream port, after a `sync`). After wake it rescans the PCI bus, which
+brings them back if the firmware powered them up again and costs nothing if
+it did not. USB-C devices on the Thunderbolt ports were lost on wake before
+and still are; a disk there should be unmounted before sleep.
+`./install.sh sleep-stock` removes the hook. `./check.sh` shows how long the
+last wake took.
+
+## ACPI interrupt storm after the first wake
+
+After the same resume, GPE 13 fires about 380 times a second
+(`/sys/firmware/acpi/interrupts/gpe13`) and a `kworker/0:*+kacpid` thread
+keeps one core at 95 %, which also raises the fan speed. It started with the
+first resume and lasts until reboot. `./check.sh` warns about it.
 
 ## Not used: `imac-patcher --apply t2suspend`
 

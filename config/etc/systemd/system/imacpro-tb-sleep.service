@@ -1,0 +1,16 @@
+# Installed by imac-pro-omarchy (./install.sh sleep). Takes the Thunderbolt
+# controllers off the PCI bus before every sleep and rescans after wake, so the
+# first resume of a boot no longer waits about 60 s for them (docs/sleep.md).
+[Unit]
+Description=Detach Thunderbolt around sleep (imacpro-tb-sleep, see docs/sleep.md)
+Before=sleep.target
+StopWhenUnneeded=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/imacpro-tb-sleep pre
+ExecStop=/usr/local/bin/imacpro-tb-sleep post
+
+[Install]
+WantedBy=sleep.target

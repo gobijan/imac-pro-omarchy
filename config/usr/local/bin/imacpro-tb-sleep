@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# imacpro-tb-sleep — installed by imac-pro-omarchy (./install.sh sleep) and run
+# by imacpro-tb-sleep.service around every sleep. See docs/sleep.md.
+#
+#   imacpro-tb-sleep pre    take both Thunderbolt controllers off the PCI bus
+#   imacpro-tb-sleep post   rescan the PCI bus for them
+#
+# In deep sleep the firmware powers the two Alpine Ridge controllers down. When
+# Linux has put them to sleep itself, the first resume of a boot then waits
+# 30 s per controller for them to come back, which they never do. A controller
+# that is no longer on the bus is not resumed, so there is nothing to wait for.
+set -uo pipefail
+
+PCI=/sys/bus/pci
+STATE=/run/imacpro-tb-sleep
+
+log() { printf 'imacpro-tb-sleep: %s\n' "$*"; }
+
+case ${1:-} in
+pre)
+    removed=0
+    # Each NHI sits two levels below its controller's upstream port:
+    # root port / upstream port / downstream port / NHI.
+    for nhi in "$PCI"/drivers/thunderbolt/0000:*; do
+        [[ -e $nhi ]] || continue
+        upstream=$(dirname "$(dirname "$(readlink -f "$nhi")")")
+        if [[ $(cat "$upstream/vendor" 2>/dev/null) != 0x8086 || $(cat "$upstream/class" 2>/dev/null) != 0x060400 ]]; then
+            log "skipping ${nhi##*/}: ${upstream##*/} is not an Intel Thunderbolt bridge"
+            continue
+        fi
+        # Data still on its way to a USB-C disk must not be lost with the port.
+        (( removed )) || sync
+        if echo 1 > "$upstream/remove"; then
+            log "removed Thunderbolt controller ${upstream##*/} for sleep"
+            removed=1
+        else
+            log "could not remove ${upstream##*/}; this resume may take about 30 s longer"
+        fi
+    done
+    (( removed )) && touch "$STATE"
+    ;;
+post)
+    [[ -e $STATE ]] || exit 0
+    # Finds the controllers again if the firmware powered them back up, and
+    # costs nothing if it did not. Kept until reboot so every resume retries.
+    echo 1 > "$PCI/rescan" && log "rescanned the PCI bus"
+    if compgen -G "$PCI/drivers/thunderbolt/0000:*" >/dev/null; then
+        log "Thunderbolt is back"
+    else
+        log "Thunderbolt stays off until the next boot (the firmware left the controllers powered down)"
+    fi
+    ;;
+*)
+    echo "usage: imacpro-tb-sleep pre|post" >&2
+    exit 2
+    ;;
+esac
+exit 0
