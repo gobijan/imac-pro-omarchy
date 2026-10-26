@@ -16,6 +16,7 @@ so a reinstall takes minutes instead of a day of research.
 |---|---|---|
 | Native 5K: 5120×2880 at 60 Hz, 10 bit, Display P3 | ✅ | Patched `amdgpu` module, see [docs/display-5k.md](docs/display-5k.md) |
 | Speakers: 2 woofers + 2 tweeters | ✅ | Crossover and Apple's EQ in PipeWire, see [docs/audio.md](docs/audio.md) |
+| Video decoding on the GPU | ✅ | H.264 and HEVC via VA-API; an extension makes YouTube send H.264 instead of AV1, see [docs/video.md](docs/video.md) |
 | Headphone jack | ✅ | No jack detection; select the output by hand |
 | Wi-Fi (BCM4364) | ✅ | Needs Apple's firmware, kept in a private repo, see [Wi-Fi firmware](#wi-fi-firmware) |
 | Bluetooth | ✅ | |
@@ -81,8 +82,9 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ```
 
    Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `sleep`,
-   `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own fan
-   daemon, `./install.sh sleep-stock` removes the Thunderbolt sleep hook.
+   `video`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
+   fan daemon, `./install.sh sleep-stock` removes the Thunderbolt sleep hook,
+   `./install.sh video-stock` the YouTube H.264 extension.
 
 4. Check everything:
 
@@ -95,6 +97,10 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
 The fans and the Thunderbolt sleep hook need nothing: both live outside
 pacman's reach and survive package and Omarchy updates
 ([docs/fans.md](docs/fans.md), [docs/sleep.md](docs/sleep.md)).
+
+`omarchy-refresh-chromium` resets `~/.config/chromium-flags.conf` and with it
+the YouTube H.264 extension. `./check.sh` warns, and `./install.sh video`
+brings it back.
 `./check.sh` confirms it.
 
 A new `linux-t2` comes with the stock GPU driver, so the panel drops back to
@@ -110,10 +116,10 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              firmware | audio | udev | fans | sleep | display | 5k | all; backs up every file it replaces
-check.sh                read-only health check (display, audio, Wi-Fi, fans, sleep)
+install.sh              firmware | audio | udev | fans | sleep | video | display | 5k | all; backs up every file it replaces
+check.sh                read-only health check (display, audio, video, Wi-Fi, fans, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
-config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins)
+config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins, Chromium extension)
 config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config)
 config/usr/local/       the Thunderbolt sleep hook script
 patches/                t2fanrd-quiet.patch: lower idle fan speed for t2fanrd

@@ -9,9 +9,11 @@
 #   ./install.sh fans-stock  back to Omarchy's own t2fanrd and fan config (sudo)
 #   ./install.sh sleep       detach Thunderbolt around sleep, so waking skips a ~60 s wait (sudo)
 #   ./install.sh sleep-stock remove that sleep hook again (sudo)
+#   ./install.sh video       Chromium extension: YouTube in H.264, decoded on the GPU (no sudo)
+#   ./install.sh video-stock remove that extension again (no sudo)
 #   ./install.sh display     Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
 #   ./install.sh 5k          build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all         firmware + audio + udev + fans + sleep + 5k
+#   ./install.sh all         firmware + audio + udev + fans + sleep + video + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -32,12 +34,14 @@ T2FANRD_COMMIT=48baf962697ec3d4d969c74cf601ee8e15b7aeaa
 FAN_BIN=/usr/local/bin/t2fanrd-quiet
 TB_SLEEP_BIN=/usr/local/bin/imacpro-tb-sleep
 TB_SLEEP_UNIT=/etc/systemd/system/imacpro-tb-sleep.service
+CHROMIUM_FLAGS="$HOME/.config/chromium-flags.conf"
+H264_EXT="$HOME/.local/share/imac-pro-omarchy/chromium/youtube-h264"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,14p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,16p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -180,6 +184,48 @@ do_sleep_stock() {
     say "sleep-stock: hook removed; the first wake of each boot takes about 70 s again"
 }
 
+# Chromium's launcher splits each line into arguments; look at them with
+# comments removed, as Omarchy's own omarchy-chromium-add-feature does.
+chromium_args() { sed -E 's/(^|[[:space:]])#.*$//' "$CHROMIUM_FLAGS"; }
+
+# Omarchy loads its extensions with one comma-separated --load-extension, and a
+# second switch would replace that list, so the extension joins it.
+do_video() {
+    [[ -f $CHROMIUM_FLAGS ]] || die "video: $CHROMIUM_FLAGS is missing; is Omarchy's Chromium installed?"
+    local f
+    for f in manifest.json h264.js; do
+        put_file "$CONFIG/home/.local/share/imac-pro-omarchy/chromium/youtube-h264/$f" "$H264_EXT/$f"
+    done
+    if chromium_args | grep -qF -- "$H264_EXT"; then
+        say "unchanged: $CHROMIUM_FLAGS"
+    else
+        cp -a "$CHROMIUM_FLAGS" "$CHROMIUM_FLAGS.bak-$STAMP"
+        say "backed up: $CHROMIUM_FLAGS.bak-$STAMP"
+        if chromium_args | grep -qE -- '(^|[[:space:]])--load-extension='; then
+            sed -i --follow-symlinks -E "s@^(([^#]*[[:space:]])?--load-extension=[^[:space:]#]*)@\1,$H264_EXT@" "$CHROMIUM_FLAGS"
+        else
+            [[ -z $(tail -c1 "$CHROMIUM_FLAGS") ]] || echo >>"$CHROMIUM_FLAGS"
+            printf '%s\n' "--load-extension=$H264_EXT" >>"$CHROMIUM_FLAGS"
+        fi
+        say "installed: $H264_EXT in --load-extension of $CHROMIUM_FLAGS"
+    fi
+    say "video: restart Chromium; YouTube then plays H.264, decoded on the GPU"
+}
+
+do_video_stock() {
+    if [[ -f $CHROMIUM_FLAGS ]] && grep -qF -- "$H264_EXT" "$CHROMIUM_FLAGS"; then
+        local path=${H264_EXT//./\\.}
+        cp -a "$CHROMIUM_FLAGS" "$CHROMIUM_FLAGS.bak-$STAMP"
+        sed -i --follow-symlinks -E \
+            -e "s@--load-extension=$path,@--load-extension=@" \
+            -e "s@,$path@@g" \
+            -e "\@^[[:space:]]*--load-extension=$path[[:space:]]*\$@d" "$CHROMIUM_FLAGS"
+        say "video-stock: removed the extension from $CHROMIUM_FLAGS (backup: $CHROMIUM_FLAGS.bak-$STAMP)"
+    fi
+    rm -rf -- "$H264_EXT"
+    say "video-stock: restart Chromium; YouTube picks AV1 or VP9 again, decoded on the CPU"
+}
+
 do_display() {
     put_file "$CONFIG/home/.config/hypr/monitors.lua" "$HOME/.config/hypr/monitors.lua"
     say "display: Hyprland reloads monitors.lua by itself"
@@ -207,7 +253,9 @@ for step in "$@"; do
         fans-stock) do_fans_stock ;;
         sleep) do_sleep ;;
         sleep-stock) do_sleep_stock ;;
-        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_5k ;;
+        video) do_video ;;
+        video-stock) do_video_stock ;;
+        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_video; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;
     esac

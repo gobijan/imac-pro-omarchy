@@ -55,6 +55,20 @@ sink="$(pactl get-default-sink 2>/dev/null)"
 [[ $(systemctl --user show -p Environment pipewire 2>/dev/null) == *ALSA_CONFIG_UCM2* ]] \
     && ok "PipeWire uses the UCM override" || meh "PipeWire runs without ALSA_CONFIG_UCM2 (./install.sh audio)"
 
+section "Video"
+[[ -e /usr/lib/dri/radeonsi_drv_video.so ]] \
+    && ok "VA-API driver for the Vega present (H.264 and HEVC in hardware, not VP9 or AV1)" \
+    || bad "no /usr/lib/dri/radeonsi_drv_video.so: Chromium decodes all video on the CPU"
+h264=$HOME/.local/share/imac-pro-omarchy/chromium/youtube-h264
+if [[ -f $h264/h264.js ]] && sed -E 's/(^|[[:space:]])#.*$//' ~/.config/chromium-flags.conf 2>/dev/null | grep -qF -- "$h264"; then
+    ok "YouTube H.264 extension in chromium-flags.conf"
+    if pgrep -x chromium >/dev/null && ! pgrep -f -- "--load-extension=.*youtube-h264" >/dev/null; then
+        meh "the running Chromium started before that: restart it to load the extension"
+    fi
+else
+    meh "YouTube sends AV1 or VP9, decoded on the CPU (./install.sh video; again after omarchy-refresh-chromium)"
+fi
+
 section "Wi-Fi, Bluetooth, camera"
 if grep -q 'brcmf_c_preinit_dcmds: Firmware: BCM4364' <<<"$kernel_log"; then
     ok "Wi-Fi firmware loaded"
