@@ -7,9 +7,11 @@
 #   ./install.sh udev        keep the T2 USB hub awake: camera, light sensor, headset (sudo)
 #   ./install.sh fans        patched t2fanrd: fans idle at 800 instead of 1100 rpm (sudo)
 #   ./install.sh fans-stock  back to Omarchy's own t2fanrd and fan config (sudo)
+#   ./install.sh sleep       detach Thunderbolt around sleep, so waking skips a ~60 s wait (sudo)
+#   ./install.sh sleep-stock remove that sleep hook again (sudo)
 #   ./install.sh display     Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
 #   ./install.sh 5k          build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all         firmware + audio + udev + fans + 5k
+#   ./install.sh all         firmware + audio + udev + fans + sleep + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -28,12 +30,14 @@ UCM_USER="$HOME/.config/alsa-ucm2"
 T2FANRD_URL=https://github.com/GnomedDev/t2fanrd
 T2FANRD_COMMIT=48baf962697ec3d4d969c74cf601ee8e15b7aeaa
 FAN_BIN=/usr/local/bin/t2fanrd-quiet
+TB_SLEEP_BIN=/usr/local/bin/imacpro-tb-sleep
+TB_SLEEP_UNIT=/etc/systemd/system/imacpro-tb-sleep.service
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,12p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,14p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -159,6 +163,23 @@ do_fans_stock() {
     say "fans-stock: Omarchy's t2fanrd running with /etc/t2fand.conf; the fans idle at 1100 rpm again"
 }
 
+# A unit of our own in /etc and a script in /usr/local: no package owns either.
+do_sleep() {
+    put_file "$CONFIG$TB_SLEEP_BIN" "$TB_SLEEP_BIN" sudo
+    sudo chmod 755 "$TB_SLEEP_BIN"
+    put_file "$CONFIG$TB_SLEEP_UNIT" "$TB_SLEEP_UNIT" sudo
+    sudo systemctl daemon-reload
+    sudo systemctl enable imacpro-tb-sleep.service
+    say "sleep: Thunderbolt is detached before every sleep; waking no longer waits ~60 s for it"
+}
+
+do_sleep_stock() {
+    sudo systemctl disable imacpro-tb-sleep.service 2>/dev/null || true
+    sudo rm -f "$TB_SLEEP_UNIT" "$TB_SLEEP_BIN"
+    sudo systemctl daemon-reload
+    say "sleep-stock: hook removed; the first wake of each boot takes about 70 s again"
+}
+
 do_display() {
     put_file "$CONFIG/home/.config/hypr/monitors.lua" "$HOME/.config/hypr/monitors.lua"
     say "display: Hyprland reloads monitors.lua by itself"
@@ -184,7 +205,9 @@ for step in "$@"; do
     case $step in
         firmware|audio|udev|fans|display|5k) "do_$step" ;;
         fans-stock) do_fans_stock ;;
-        all) do_firmware; do_audio; do_udev; do_fans; do_5k ;;
+        sleep) do_sleep ;;
+        sleep-stock) do_sleep_stock ;;
+        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;
     esac
