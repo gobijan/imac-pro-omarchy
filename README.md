@@ -24,6 +24,7 @@ so a reinstall takes minutes instead of a day of research.
 | Suspend (deep S3) | ✅ | Also with the 5K patch. The first wake of each boot waited ~60 s for Thunderbolt; a sleep hook (`./install.sh sleep`) takes it off the bus first. The USB-C ports are dead after sleep, see [docs/sleep.md](docs/sleep.md) |
 | Hibernate | ❔ | Set up by Omarchy, never tested |
 | Fan control | ✅ | Patched `t2fanrd`: idles at 800 instead of 1100 rpm, see [docs/fans.md](docs/fans.md) |
+| Power profile | ✅ | `balanced` instead of Omarchy's `performance`: cooler, quieter, a few watts less (`./install.sh power`), see [docs/power.md](docs/power.md) |
 
 Tested in October 2026 on an iMac Pro with a Radeon Pro Vega 64 and 32 GB RAM,
 running Omarchy with Limine and Hyprland 0.56.2, `linux-t2` 7.2.11 and
@@ -82,9 +83,10 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ```
 
    Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `sleep`,
-   `video`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
+   `video`, `power`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
    fan daemon, `./install.sh sleep-stock` removes the Thunderbolt sleep hook,
-   `./install.sh video-stock` the YouTube H.264 extension.
+   `./install.sh video-stock` the YouTube H.264 extension,
+   and `./install.sh power-stock` lets Omarchy pick `performance` again.
 
 4. Check everything:
 
@@ -116,8 +118,8 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              firmware | audio | udev | fans | sleep | video | display | 5k | all; backs up every file it replaces
-check.sh                read-only health check (display, audio, video, Wi-Fi, fans, sleep)
+install.sh              firmware | audio | udev | fans | sleep | video | power | display | 5k | all; backs up every file it replaces
+check.sh                read-only health check (display, audio, video, Wi-Fi, fans, power, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins, Chromium extension)
 config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config)
