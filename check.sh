@@ -92,6 +92,18 @@ systemctl is-active -q t2fanrd && ok "t2fanrd running" || bad "t2fanrd not runni
     && ok "fans at $(cat "$fans/fan1_input") and $(cat "$fans/fan2_input") rpm, set by t2fanrd" \
     || meh "the SMC controls the fans (fan1_manual=0); t2fanrd-quiet takes over again within 30 s of a resume"
 
+section "Power"
+profile="$(powerprofilesctl get 2>/dev/null)"
+case $profile in
+    "") meh "power-profiles-daemon not reachable" ;;
+    performance) meh "power profile performance: the CPU runs warmer and the fans faster (./install.sh power)" ;;
+    *) ok "power profile $profile" ;;
+esac
+saved="$(cat "${OMARCHY_POWERPROFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/powerprofiles}/ac" 2>/dev/null)"
+[[ -n $saved && $saved != performance ]] \
+    && ok "Omarchy restores $saved at every login" \
+    || meh "Omarchy picks performance again at the next login (./install.sh power)"
+
 section "Sleep"
 [[ $(cat /sys/power/mem_sleep 2>/dev/null) == *"[deep]"* ]] && ok "suspend uses deep (S3)" || meh "suspend mode: $(cat /sys/power/mem_sleep 2>/dev/null)"
 [[ $(systemctl is-enabled imacpro-tb-sleep.service 2>/dev/null) == enabled ]] \

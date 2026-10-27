@@ -11,9 +11,11 @@
 #   ./install.sh sleep-stock remove that sleep hook again (sudo)
 #   ./install.sh video       Chromium extension: YouTube in H.264, decoded on the GPU (no sudo)
 #   ./install.sh video-stock remove that extension again (no sudo)
+#   ./install.sh power       balanced power profile instead of performance, kept across logins (no sudo)
+#   ./install.sh power-stock let Omarchy pick performance again (no sudo)
 #   ./install.sh display     Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
 #   ./install.sh 5k          build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all         firmware + audio + udev + fans + sleep + video + 5k
+#   ./install.sh all         firmware + audio + udev + fans + sleep + video + power + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -36,12 +38,13 @@ TB_SLEEP_BIN=/usr/local/bin/imacpro-tb-sleep
 TB_SLEEP_UNIT=/etc/systemd/system/imacpro-tb-sleep.service
 CHROMIUM_FLAGS="$HOME/.config/chromium-flags.conf"
 H264_EXT="$HOME/.local/share/imac-pro-omarchy/chromium/youtube-h264"
+POWER_STATE="${OMARCHY_POWERPROFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/powerprofiles}/ac"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,16p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,18p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -226,6 +229,21 @@ do_video_stock() {
     say "video-stock: restart Chromium; YouTube picks AV1 or VP9 again, decoded on the CPU"
 }
 
+# At every login Omarchy runs omarchy-powerprofiles-set autodetect. On AC it
+# restores the profile saved for ac, or picks performance when none is saved.
+# Saving balanced is what picking it in Omarchy's power panel does.
+do_power() {
+    command -v omarchy-powerprofiles-set >/dev/null || die "power: omarchy-powerprofiles-set is missing; is this Omarchy?"
+    omarchy-powerprofiles-set ac balanced
+    say "power: balanced now and at every login (saved in $POWER_STATE)"
+}
+
+do_power_stock() {
+    rm -f "$POWER_STATE"
+    omarchy-powerprofiles-set autodetect
+    say "power-stock: nothing saved for AC, so Omarchy picks performance, now and at every login"
+}
+
 do_display() {
     put_file "$CONFIG/home/.config/hypr/monitors.lua" "$HOME/.config/hypr/monitors.lua"
     say "display: Hyprland reloads monitors.lua by itself"
@@ -255,7 +273,9 @@ for step in "$@"; do
         sleep-stock) do_sleep_stock ;;
         video) do_video ;;
         video-stock) do_video_stock ;;
-        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_video; do_5k ;;
+        power) do_power ;;
+        power-stock) do_power_stock ;;
+        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_video; do_power; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;
     esac
