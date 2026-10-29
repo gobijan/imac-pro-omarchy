@@ -15,9 +15,11 @@
 #   ./install.sh video-stock remove that extension again (no sudo)
 #   ./install.sh power       balanced power profile instead of performance, kept across logins (no sudo)
 #   ./install.sh power-stock let Omarchy pick performance again (no sudo)
+#   ./install.sh cpu         turbo off: the CPU stays at its base clock, now and at every boot (sudo)
+#   ./install.sh cpu-stock   turbo on again (sudo)
 #   ./install.sh display     Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
 #   ./install.sh 5k          build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all         firmware + audio + udev + fans + sleep + gmux + video + power + 5k
+#   ./install.sh all         firmware + audio + udev + fans + sleep + gmux + video + power + cpu + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -42,13 +44,15 @@ GMUX_CMDLINE=/etc/limine-entry-tool.d/imacpro-gmux.conf
 GMUX_GPE=/sys/firmware/acpi/interrupts/gpe13
 CHROMIUM_FLAGS="$HOME/.config/chromium-flags.conf"
 H264_EXT="$HOME/.local/share/imac-pro-omarchy/chromium/youtube-h264"
+CPU_TMPFILES=/etc/tmpfiles.d/imacpro-cpu.conf
+NO_TURBO=/sys/devices/system/cpu/intel_pstate/no_turbo
 POWER_STATE="${OMARCHY_POWERPROFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/powerprofiles}/ac"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,20p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,22p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -266,6 +270,20 @@ do_power_stock() {
     say "power-stock: nothing saved for AC, so Omarchy picks performance, now and at every login"
 }
 
+# no_turbo resets at every boot, so a tmpfiles rule sets it again.
+do_cpu() {
+    [[ -e $NO_TURBO ]] || die "cpu: no $NO_TURBO; this step expects the intel_pstate driver"
+    put_file "$CONFIG$CPU_TMPFILES" "$CPU_TMPFILES" sudo
+    sudo systemd-tmpfiles --create "$CPU_TMPFILES"
+    say "cpu: turbo off now and from every boot; the CPU stays at or below $(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/base_frequency) / 1000 )) MHz"
+}
+
+do_cpu_stock() {
+    sudo rm -f "$CPU_TMPFILES"
+    echo 0 | sudo tee "$NO_TURBO" >/dev/null
+    say "cpu-stock: turbo on again; the CPU clocks up to $(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq) / 1000 )) MHz"
+}
+
 do_display() {
     put_file "$CONFIG/home/.config/hypr/monitors.lua" "$HOME/.config/hypr/monitors.lua"
     say "display: Hyprland reloads monitors.lua by itself"
@@ -299,7 +317,9 @@ for step in "$@"; do
         video-stock) do_video_stock ;;
         power) do_power ;;
         power-stock) do_power_stock ;;
-        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_gmux; do_video; do_power; do_5k ;;
+        cpu) do_cpu ;;
+        cpu-stock) do_cpu_stock ;;
+        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_gmux; do_video; do_power; do_cpu; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;
     esac

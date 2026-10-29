@@ -103,6 +103,19 @@ saved="$(cat "${OMARCHY_POWERPROFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/
 [[ -n $saved && $saved != performance ]] \
     && ok "Omarchy restores $saved at every login" \
     || meh "Omarchy picks performance again at the next login (./install.sh power)"
+cpufreq=/sys/devices/system/cpu/cpu0/cpufreq
+base_mhz=$(( $(cat $cpufreq/base_frequency 2>/dev/null || echo 0) / 1000 ))
+max_mhz=$(( $(cat $cpufreq/cpuinfo_max_freq 2>/dev/null || echo 0) / 1000 ))
+no_turbo="$(cat /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null)"
+if [[ -f /etc/tmpfiles.d/imacpro-cpu.conf ]]; then
+    [[ $no_turbo == 1 ]] \
+        && ok "turbo off, now and from every boot: the CPU stays at or below $base_mhz MHz" \
+        || meh "turbo is set to go off at boot but is on now (./install.sh cpu)"
+else
+    [[ $no_turbo == 1 ]] \
+        && meh "turbo off only until the next boot (./install.sh cpu)" \
+        || meh "turbo on: bursts of work clock up to $max_mhz MHz and lift the fans (./install.sh cpu)"
+fi
 
 section "Sleep"
 [[ $(cat /sys/power/mem_sleep 2>/dev/null) == *"[deep]"* ]] && ok "suspend uses deep (S3)" || meh "suspend mode: $(cat /sys/power/mem_sleep 2>/dev/null)"

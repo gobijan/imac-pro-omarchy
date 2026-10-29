@@ -26,6 +26,7 @@ so a reinstall takes minutes instead of a day of research.
 | Hibernate | ❔ | Set up by Omarchy, never tested |
 | Fan control | ✅ | Patched `t2fanrd`: idles at 800 instead of 1100 rpm, see [docs/fans.md](docs/fans.md) |
 | Power profile | ✅ | `balanced` instead of Omarchy's `performance`: cooler, quieter, a few watts less (`./install.sh power`), see [docs/power.md](docs/power.md) |
+| Turbo off | ✅ | The CPU stays at its 3.2 GHz base clock: under full load 68 instead of 86 °C, fans at 1900 instead of 2500 rpm (`./install.sh cpu`), see [docs/power.md](docs/power.md) |
 
 Tested in October 2026 on an iMac Pro with a Radeon Pro Vega 64 and 32 GB RAM,
 running Omarchy with Limine and Hyprland 0.56.2, `linux-t2` 7.2.11 and
@@ -84,11 +85,12 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ```
 
    Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `sleep`,
-   `gmux`, `video`, `power`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
+   `gmux`, `video`, `power`, `cpu`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
    fan daemon, `./install.sh sleep-stock` removes the Thunderbolt sleep hook,
    `./install.sh gmux-stock` unmasks the gmux GPE,
    `./install.sh video-stock` the YouTube H.264 extension,
-   and `./install.sh power-stock` lets Omarchy pick `performance` again.
+   `./install.sh power-stock` lets Omarchy pick `performance` again,
+   and `./install.sh cpu-stock` turns turbo back on.
 
 4. Check everything:
 
@@ -98,9 +100,10 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
 
 ## After updates
 
-The fans, the Thunderbolt sleep hook and the gmux mask need nothing: all
-three live outside pacman's reach and survive package and Omarchy updates
-([docs/fans.md](docs/fans.md), [docs/sleep.md](docs/sleep.md)).
+The fans, the Thunderbolt sleep hook, the gmux mask and turbo off need
+nothing: all four live outside pacman's reach and survive package and Omarchy
+updates ([docs/fans.md](docs/fans.md), [docs/sleep.md](docs/sleep.md),
+[docs/power.md](docs/power.md)).
 
 `omarchy-refresh-chromium` resets `~/.config/chromium-flags.conf` and with it
 the YouTube H.264 extension. `./check.sh` warns, and `./install.sh video`
@@ -120,11 +123,11 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              firmware | audio | udev | fans | sleep | gmux | video | power | display | 5k | all; backs up every file it replaces
+install.sh              firmware | audio | udev | fans | sleep | gmux | video | power | cpu | display | 5k | all; backs up every file it replaces
 check.sh                read-only health check (display, audio, video, Wi-Fi, fans, power, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins, Chromium extension)
-config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config, kernel command line)
+config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config, kernel command line, turbo off)
 config/usr/local/       the Thunderbolt sleep hook script
 patches/                t2fanrd-quiet.patch: lower idle fan speed for t2fanrd
 docs/                   the why and the how, one file per topic
