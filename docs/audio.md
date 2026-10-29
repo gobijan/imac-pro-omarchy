@@ -50,11 +50,25 @@ tweeters.
    differs: on the iMac19,1 the tweeters are FL/FR, here the woofers are.
    Apple's level-dependent stages (compressor, limiter) are not reproduced.
 
-   To trim the tweeters live, for example 1 dB below Apple's value:
+   With Apple's values the sound was muddy in the low mids. Four values are
+   tuned clearer, by ear on this iMac Pro, with music:
+
+   | Node | What | Apple | Here |
+   |---|---|---|---|
+   | `inl_5`, `inr_5` | input EQ at 320 Hz | −4.27 dB | −8.00 dB |
+   | `wol_6`, `wor_6` | woofer EQ at 425 Hz | +4.39 dB | 0.00 dB |
+   | `inl_2`, `inr_2` | input EQ at 4.4 kHz, presence | +1.59 dB | +4.00 dB |
+   | `gtwl`, `gtwr` | tweeter gain | 0.746917 | 0.940309 (+2 dB) |
+
+   Every control can be changed live, without a restart. For example, the
+   tweeters 1 dB lower:
 
    ```bash
-   pw-cli s imacpro_speakers Props '{ params = [ "gtwl:Mult" 0.6657 "gtwr:Mult" 0.6657 ] }'
+   pw-cli s imacpro_speakers Props '{ params = [ "gtwl:Mult" 0.838 "gtwr:Mult" 0.838 ] }'
    ```
+
+   `pw-cli e imacpro_speakers Props` lists the current values. A live change
+   lasts until PipeWire restarts; to keep it, change the config.
 
 ## Headphones
 
