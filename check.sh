@@ -130,6 +130,9 @@ elif (( ${took%.*} < 20 )); then
 else
     bad "last wake took ${took} s in the kernel: it waited for Thunderbolt (docs/sleep.md)"
 fi
+[[ " $(cat /proc/cmdline) " == *" acpi_mask_gpe=0x13 "* ]] \
+    && ok "gmux GPE 13 masked from boot (acpi_mask_gpe=0x13)" \
+    || meh "gmux GPE 13 not masked: after a wake it floods and keeps CPU 0 busy (./install.sh gmux)"
 gpes=/sys/firmware/acpi/interrupts
 if read -r before _ < "$gpes/gpe_all" 2>/dev/null; then
     sleep 1
@@ -137,7 +140,7 @@ if read -r before _ < "$gpes/gpe_all" 2>/dev/null; then
     if (( after - before > 50 )); then
         top="$(grep -H . "$gpes"/gpe[0-9A-F][0-9A-F] | sort -t: -k2 -nr | head -n1)"
         top=${top%%:*}
-        meh "ACPI interrupt storm: $((after - before))/s, mostly ${top##*/}; a kacpid kworker keeps one core busy and warms the fans"
+        meh "ACPI interrupt storm: $((after - before))/s, mostly ${top##*/}; a kacpi kworker keeps CPU 0 busy and warms the fans (gpe13 is the gmux: ./install.sh gmux)"
     else
         ok "no ACPI interrupt storm ($((after - before))/s)"
     fi

@@ -22,6 +22,7 @@ so a reinstall takes minutes instead of a day of research.
 | Bluetooth | ✅ | |
 | FaceTime HD camera, ambient light sensor | ✅ | Needs the T2 USB power rule (`./install.sh udev`) |
 | Suspend (deep S3) | ✅ | Also with the 5K patch. The first wake of each boot waited ~60 s for Thunderbolt; a sleep hook (`./install.sh sleep`) takes it off the bus first. The USB-C ports are dead after sleep, see [docs/sleep.md](docs/sleep.md) |
+| No CPU load after sleep | ✅ | After each wake the gmux's GPE 13 flooded and kept CPU 0 at 95 %; `./install.sh gmux` masks it, see [docs/sleep.md](docs/sleep.md) |
 | Hibernate | ❔ | Set up by Omarchy, never tested |
 | Fan control | ✅ | Patched `t2fanrd`: idles at 800 instead of 1100 rpm, see [docs/fans.md](docs/fans.md) |
 | Power profile | ✅ | `balanced` instead of Omarchy's `performance`: cooler, quieter, a few watts less (`./install.sh power`), see [docs/power.md](docs/power.md) |
@@ -83,8 +84,9 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ```
 
    Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `sleep`,
-   `video`, `power`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
+   `gmux`, `video`, `power`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
    fan daemon, `./install.sh sleep-stock` removes the Thunderbolt sleep hook,
+   `./install.sh gmux-stock` unmasks the gmux GPE,
    `./install.sh video-stock` the YouTube H.264 extension,
    and `./install.sh power-stock` lets Omarchy pick `performance` again.
 
@@ -96,8 +98,8 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
 
 ## After updates
 
-The fans and the Thunderbolt sleep hook need nothing: both live outside
-pacman's reach and survive package and Omarchy updates
+The fans, the Thunderbolt sleep hook and the gmux mask need nothing: all
+three live outside pacman's reach and survive package and Omarchy updates
 ([docs/fans.md](docs/fans.md), [docs/sleep.md](docs/sleep.md)).
 
 `omarchy-refresh-chromium` resets `~/.config/chromium-flags.conf` and with it
@@ -118,11 +120,11 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              firmware | audio | udev | fans | sleep | video | power | display | 5k | all; backs up every file it replaces
+install.sh              firmware | audio | udev | fans | sleep | gmux | video | power | display | 5k | all; backs up every file it replaces
 check.sh                read-only health check (display, audio, video, Wi-Fi, fans, power, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins, Chromium extension)
-config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config)
+config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config, kernel command line)
 config/usr/local/       the Thunderbolt sleep hook script
 patches/                t2fanrd-quiet.patch: lower idle fan speed for t2fanrd
 docs/                   the why and the how, one file per topic

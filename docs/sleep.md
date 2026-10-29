@@ -51,12 +51,34 @@ and still are; a disk there should be unmounted before sleep.
 `./install.sh sleep-stock` removes the hook. `./check.sh` shows how long the
 last wake took.
 
-## ACPI interrupt storm after the first wake
+## CPU 0 busy after every wake: the gmux GPE
 
-After the same resume, GPE 13 fires about 380 times a second
-(`/sys/firmware/acpi/interrupts/gpe13`) and a `kworker/0:*+kacpid` thread
-keeps one core at 95 %, which also raises the fan speed. It started with the
-first resume and lasts until reboot. `./check.sh` warns about it.
+After a wake from sleep, GPE 13 fired 380 to 530 times a second
+(`/sys/firmware/acpi/interrupts/gpe13`) until reboot, and a
+`kworker/0:*+kacpi_notify` thread kept CPU 0 at about 95 %. The CPU package
+then sat at 58 to 62 °C, above the 55 °C where the fan curve starts
+([fans.md](fans.md)), so the fans ran at 1050 to 1150 instead of 800 rpm.
+
+GPE 13 belongs to the gmux (`\_SB.PCI0.LPCB.GPUC`, `APP000B`), Apple's
+display and GPU-switching controller, which on the iMac Pro drives the
+backlight. Linux answers `_OSI("Darwin")` on Apple hardware, so the GPE's
+`_L13` method only does `Notify (GPUC, 0x80)`, and the `apple-gmux` driver
+reads and clears the gmux's interrupt status. The driver's comments describe a
+flood of `status=0` interrupts on the T2's MMIO gmux, which it stops by
+calling `GMSP(0)` after each one. That holds from boot until the first sleep,
+not after.
+
+The gmux interrupt only reports GPU power switches, and the iMac Pro has a
+single GPU. The backlight is set through the gmux's registers and needs no
+interrupt: with the GPE masked, `brightnessctl` still sets it and reads the
+new value back. `./install.sh gmux` adds `acpi_mask_gpe=0x13` to the kernel
+command line ([`/etc/limine-entry-tool.d/imacpro-gmux.conf`](../config/etc/limine-entry-tool.d/imacpro-gmux.conf)),
+runs `limine-update`, and masks the GPE in the running system right away
+(`echo mask > /sys/firmware/acpi/interrupts/gpe13`). Masked during a storm, it
+went from 530 to 0 a second, the package from 58 to 50 °C, and the fans back
+to 800 rpm. `./install.sh gmux-stock` removes the parameter and unmasks the
+GPE. `./check.sh` shows whether the parameter is active and warns about any
+storm that is left.
 
 ## Not used: `imac-patcher --apply t2suspend`
 
