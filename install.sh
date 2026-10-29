@@ -9,13 +9,15 @@
 #   ./install.sh fans-stock  back to Omarchy's own t2fanrd and fan config (sudo)
 #   ./install.sh sleep       detach Thunderbolt around sleep, so waking skips a ~60 s wait (sudo)
 #   ./install.sh sleep-stock remove that sleep hook again (sudo)
+#   ./install.sh gmux        mask the gmux GPE that floods CPU 0 after every wake, now and at boot (sudo)
+#   ./install.sh gmux-stock  unmask it again (sudo)
 #   ./install.sh video       Chromium extension: YouTube in H.264, decoded on the GPU (no sudo)
 #   ./install.sh video-stock remove that extension again (no sudo)
 #   ./install.sh power       balanced power profile instead of performance, kept across logins (no sudo)
 #   ./install.sh power-stock let Omarchy pick performance again (no sudo)
 #   ./install.sh display     Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
 #   ./install.sh 5k          build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all         firmware + audio + udev + fans + sleep + video + power + 5k
+#   ./install.sh all         firmware + audio + udev + fans + sleep + gmux + video + power + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -36,6 +38,8 @@ T2FANRD_COMMIT=48baf962697ec3d4d969c74cf601ee8e15b7aeaa
 FAN_BIN=/usr/local/bin/t2fanrd-quiet
 TB_SLEEP_BIN=/usr/local/bin/imacpro-tb-sleep
 TB_SLEEP_UNIT=/etc/systemd/system/imacpro-tb-sleep.service
+GMUX_CMDLINE=/etc/limine-entry-tool.d/imacpro-gmux.conf
+GMUX_GPE=/sys/firmware/acpi/interrupts/gpe13
 CHROMIUM_FLAGS="$HOME/.config/chromium-flags.conf"
 H264_EXT="$HOME/.local/share/imac-pro-omarchy/chromium/youtube-h264"
 POWER_STATE="${OMARCHY_POWERPROFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/powerprofiles}/ac"
@@ -44,7 +48,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,18p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,20p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -187,6 +191,24 @@ do_sleep_stock() {
     say "sleep-stock: hook removed; the first wake of each boot takes about 70 s again"
 }
 
+# Linux answers _OSI("Darwin") on Macs, so the gmux's GPE 13 only notifies
+# apple-gmux, and after a wake from sleep it floods. Its interrupt only reports
+# GPU power switches; the iMac Pro has one GPU, and the backlight needs none.
+do_gmux() {
+    command -v limine-update >/dev/null || die "gmux: limine-update is missing; this step expects Omarchy's Limine setup"
+    put_file "$CONFIG$GMUX_CMDLINE" "$GMUX_CMDLINE" sudo
+    sudo limine-update
+    echo mask | sudo tee "$GMUX_GPE" >/dev/null
+    say "gmux: GPE 13 masked now and, with acpi_mask_gpe=0x13, from every boot"
+}
+
+do_gmux_stock() {
+    sudo rm -f "$GMUX_CMDLINE"
+    command -v limine-update >/dev/null && sudo limine-update
+    echo unmask | sudo tee "$GMUX_GPE" >/dev/null
+    say "gmux-stock: GPE 13 unmasked; after a wake it floods CPU 0 again"
+}
+
 # Chromium's launcher splits each line into arguments; look at them with
 # comments removed, as Omarchy's own omarchy-chromium-add-feature does.
 chromium_args() { sed -E 's/(^|[[:space:]])#.*$//' "$CHROMIUM_FLAGS"; }
@@ -271,11 +293,13 @@ for step in "$@"; do
         fans-stock) do_fans_stock ;;
         sleep) do_sleep ;;
         sleep-stock) do_sleep_stock ;;
+        gmux) do_gmux ;;
+        gmux-stock) do_gmux_stock ;;
         video) do_video ;;
         video-stock) do_video_stock ;;
         power) do_power ;;
         power-stock) do_power_stock ;;
-        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_video; do_power; do_5k ;;
+        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_gmux; do_video; do_power; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;
     esac
