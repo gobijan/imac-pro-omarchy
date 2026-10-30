@@ -50,15 +50,31 @@ tweeters.
    differs: on the iMac19,1 the tweeters are FL/FR, here the woofers are.
    Apple's level-dependent stages (compressor, limiter) are not reproduced.
 
-   With Apple's values the sound was muddy in the low mids. Four values are
-   tuned clearer, by ear on this iMac Pro, with music:
+   With Apple's values the sound was muddy in the low mids. Four values differ
+   from Apple's. The first three are tuned clearer by ear on this iMac Pro, with
+   music; the last comes from the measurement below:
 
    | Node | What | Apple | Here |
    |---|---|---|---|
    | `inl_5`, `inr_5` | input EQ at 320 Hz | −4.27 dB | −8.00 dB |
-   | `wol_6`, `wor_6` | woofer EQ at 425 Hz | +4.39 dB | 0.00 dB |
    | `inl_2`, `inr_2` | input EQ at 4.4 kHz, presence | +1.59 dB | +4.00 dB |
    | `gtwl`, `gtwr` | tweeter gain | 0.746917 | 0.940309 (+2 dB) |
+   | `wol_6`, `wor_6` | woofer EQ | 425 Hz, Q 4.70, +4.39 dB | 130 Hz, Q 1.40, −7.00 dB |
+
+   Apple's values were made for the iMac19,1's interior, so the low end was
+   measured here. A log sweep at −20 dBFS went through the chain, once per
+   driver and once with all four, and was recorded with the four built-in mics:
+
+   - Channels 0 and 1 produce the lows and 2 and 3 the highs, as in the table
+     under *Hardware*. The mics can't tell left from right, so that part stays
+     unconfirmed.
+   - In a 30 ms window, which leaves out the room, the woofers have a broad hump
+     from 85 to 170 Hz, 10 dB above the mids at 135 Hz. Moving `wol_6` there
+     brought it down to 4 dB above the mids, measured again afterwards.
+   - A narrow peak on top of it, also at 135 Hz, builds up only after 30 ms. It
+     may be the room at the mic position, so it has no filter of its own.
+   - The four mics agree within 4 dB from 50 to 180 Hz. Above that they differ
+     by up to 12 dB, so the measurement was not used there.
 
    Every control can be changed live, without a restart. For example, the
    tweeters 1 dB lower:
