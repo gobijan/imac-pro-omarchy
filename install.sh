@@ -129,10 +129,16 @@ do_audio() {
         put_file "$CONFIG/home/.config/systemd/user/$f.service.d/t2-ucm.conf" \
             "$HOME/.config/systemd/user/$f.service.d/t2-ucm.conf"
     done
-    put_file "$CONFIG/home/.config/pipewire/pipewire.conf.d/imacpro-speakers.conf" \
-        "$HOME/.config/pipewire/pipewire.conf.d/imacpro-speakers.conf"
+    put_file "$CONFIG/home/.config/pipewire/imacpro-speakers.conf" \
+        "$HOME/.config/pipewire/imacpro-speakers.conf"
+    put_file "$CONFIG/home/.config/systemd/user/imacpro-speakers.service" \
+        "$HOME/.config/systemd/user/imacpro-speakers.service"
+    # The chain used to load into the daemon from here; left in place, it would
+    # run twice.
+    rm -f -- "$HOME/.config/pipewire/pipewire.conf.d/imacpro-speakers.conf"
     systemctl --user daemon-reload
-    systemctl --user restart wireplumber pipewire pipewire-pulse
+    systemctl --user enable imacpro-speakers.service
+    systemctl --user restart wireplumber pipewire pipewire-pulse imacpro-speakers.service
     say "audio: PipeWire restarted; the default output should be 'iMac Pro Speakers'"
 }
 

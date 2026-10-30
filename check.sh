@@ -52,6 +52,10 @@ fi
 section "Audio"
 sink="$(pactl get-default-sink 2>/dev/null)"
 [[ $sink == imacpro_speakers ]] && ok "default output: iMac Pro Speakers (crossover)" || meh "default output is '${sink:-none}', expected imacpro_speakers (./install.sh audio)"
+[[ $(systemctl --user is-active imacpro-speakers.service 2>/dev/null) == active ]] \
+    && ok "speaker filter runs as its own service" || bad "imacpro-speakers.service is not running: no crossover, bass reaches the tweeters (./install.sh audio)"
+[[ ! -e $HOME/.config/pipewire/pipewire.conf.d/imacpro-speakers.conf ]] \
+    || bad "old speaker drop-in still in pipewire.conf.d: the filter runs twice (./install.sh audio)"
 [[ $(systemctl --user show -p Environment pipewire 2>/dev/null) == *ALSA_CONFIG_UCM2* ]] \
     && ok "PipeWire uses the UCM override" || meh "PipeWire runs without ALSA_CONFIG_UCM2 (./install.sh audio)"
 

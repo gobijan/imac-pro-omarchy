@@ -2,7 +2,7 @@
 
 ## Speaker tuning
 
-`config/home/.config/pipewire/pipewire.conf.d/imacpro-speakers.conf` uses the
+`config/home/.config/pipewire/imacpro-speakers.conf` uses the
 filter coefficients from `config/90-imac-speakers.conf` in
 [MrHogun/imac-a2115-linux](https://github.com/MrHogun/imac-a2115-linux). That
 project read Apple's speaker tuning for the iMac19,1 out of macOS. Here the

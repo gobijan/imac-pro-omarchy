@@ -1,0 +1,20 @@
+[Unit]
+Description=iMac Pro speaker crossover and tuning
+# WirePlumber does the linking, so the filter has to come up after it.
+After=pipewire.service wireplumber.service
+Requires=pipewire.service
+Wants=wireplumber.service
+# The filter loses its connection when PipeWire goes away.
+PartOf=pipewire.service
+
+[Service]
+Type=simple
+# Runs as a PipeWire client instead of a drop-in in pipewire.conf.d: a broken
+# config then stops this service and not PipeWire, and the tuning can be
+# restarted without dropping every application's audio connection.
+ExecStart=/usr/bin/pipewire -c imacpro-speakers.conf
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

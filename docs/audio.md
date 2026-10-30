@@ -30,9 +30,8 @@ tweeters.
    links that went stale. Re-run it after an `alsa-ucm-conf` update.
 
 2. **PipeWire filter chain**
-   (`config/home/.config/pipewire/pipewire.conf.d/imacpro-speakers.conf`) creates
-   the stereo sink *iMac Pro Speakers*, `imacpro_speakers`, which becomes the
-   default:
+   (`config/home/.config/pipewire/imacpro-speakers.conf`) creates the stereo sink
+   *iMac Pro Speakers*, `imacpro_speakers`, which becomes the default:
 
    ```text
    stereo in
@@ -41,6 +40,12 @@ tweeters.
      -> split: tweeters -> RL/RR, -2.5 dB, 2 high-passes near 3.0 kHz, EQ
                woofers  -> FL/FR, 3 low-passes near 1.39 kHz, EQ
    ```
+
+   It runs as its own user service, `imacpro-speakers.service`, not inside
+   PipeWire. A broken config stops only that service, and restarting it leaves
+   other applications' audio connections alone. If the service is down, there
+   is no crossover: sound falls back to the raw sink. After editing the config,
+   apply it with `systemctl --user restart imacpro-speakers`.
 
    The coefficients are Apple's own speaker tuning for the iMac 27" 2019
    (iMac19,1), read out of macOS by
@@ -84,7 +89,7 @@ tweeters.
    ```
 
    `pw-cli e imacpro_speakers Props` lists the current values. A live change
-   lasts until PipeWire restarts; to keep it, change the config.
+   lasts until the service restarts; to keep it, change the config.
 
 ## Headphones
 
