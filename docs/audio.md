@@ -55,6 +55,12 @@ tweeters.
    differs: on the iMac19,1 the tweeters are FL/FR, here the woofers are.
    Apple's level-dependent stages (compressor, limiter) are not reproduced.
 
+   PipeWire's built-in biquads take a Q of at most 10. Eight of Apple's notches
+   are sharper, Q 11.3 to 16.5, and run at Q 10: `twl_5` and `twr_5` at
+   1.18 kHz, and `wol_7`, `wol_9`, `wol_10` and their `wor_` twins at 1.9, 2.5
+   and 3.0 kHz. All of them lie beyond the crossover, where the driver is
+   already turned down.
+
    With Apple's values the sound was muddy in the low mids. Four values differ
    from Apple's. The first three are tuned clearer by ear on this iMac Pro, with
    music; the last comes from the measurement below:
