@@ -87,6 +87,20 @@ tweeters.
    - The four mics agree within 4 dB from 50 to 180 Hz. Above that they differ
      by up to 12 dB, so the measurement was not used there.
 
+   `./measure-speakers.py` repeats the measurement with all four drivers: the
+   current tuning, the same with the `wol_6` and `wor_6` cut at 0 dB, and the
+   current tuning again. It needs `uv`. The sweeps are audible: at listening
+   levels they are lost in the mics' noise, so the script sets the volume to
+   100 % for their duration and puts it back afterwards. Keep still meanwhile.
+   The mics pick up typing, and the volume keys change the level of the sweep.
+   The script says so when a run was disturbed.
+
+   Its reference for the mids is the mean from 300 to 1000 Hz. Against that, in
+   November 2026 the hump stood 12.7 dB above the mids without the cut and
+   6.5 dB with it, and the mics agreed within 3.3 dB from 50 to 180 Hz. The
+   step is the same 6 dB as above. The absolute numbers are about 2.5 dB
+   higher; which reference the first measurement used was not written down.
+
    Every control can be changed live, without a restart. For example, the
    tweeters 1 dB lower:
 

@@ -126,6 +126,7 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 install.sh              firmware | audio | udev | fans | sleep | gmux | video | power | cpu | display | 5k | all; backs up every file it replaces
 check.sh                read-only health check (display, audio, video, Wi-Fi, fans, power, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
+measure-speakers.py     sweep through the speakers, recorded with the built-in mics; repeats the bass measurement (needs uv)
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins, Chromium extension)
 config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config, kernel command line, turbo off)
 config/usr/local/       the Thunderbolt sleep hook script
