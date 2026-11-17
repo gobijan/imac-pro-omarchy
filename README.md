@@ -131,6 +131,7 @@ config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd use
 config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config, kernel command line, turbo off)
 config/usr/local/       the Thunderbolt sleep hook script
 patches/                t2fanrd-quiet.patch: lower idle fan speed for t2fanrd
+                        imac5k-patcher-linux-7.2.13.patch: lets the pinned 5K patcher build on Linux 7.2.13 and newer
 docs/                   the why and the how, one file per topic
 vendor/                 imac5k-universal-linux-patcher, pinned at the reviewed commit
 ```

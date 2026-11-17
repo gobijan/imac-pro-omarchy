@@ -35,6 +35,21 @@ The review found:
   and backs up the stock module before it replaces it. It refuses kernels
   outside the 7.1.x and 7.2.x series.
 
+The pin is older than Linux 7.2.13. That kernel changed the line right after
+the place where one of the patches adds a call, and from then on the patches
+no longer applied: the build stopped with "did not apply cleanly" and the
+stock module stayed. [`patches/imac5k-patcher-linux-7.2.13.patch`](../patches/imac5k-patcher-linux-7.2.13.patch)
+moves that one hunk in two of the patcher's patch files so that it no longer
+depends on the changed line. What the hunk adds is the same. `./install.sh 5k`
+puts the fix into the submodule's working tree before it builds, and
+`.gitmodules` keeps `git status` from listing the submodule as modified
+because of it. The module built this way runs here on 7.2.15.
+
+The same fix is upstream as
+[pull request 18](https://github.com/MarkPronkin/imac5k-universal-linux-patcher/pull/18).
+Once the pin moves to a commit that has it, the patch here and its step in
+`install.sh` can go.
+
 ### What `./install.sh 5k` changes
 
 1. It replaces `/usr/lib/modules/$(uname -r)/kernel/drivers/gpu/drm/amd/amdgpu/amdgpu.ko.zst`

@@ -30,7 +30,9 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 CONFIG="$REPO/config"
-PATCHER="$REPO/vendor/imac5k-universal-linux-patcher/scripts/imac-patcher"
+PATCHER_DIR="$REPO/vendor/imac5k-universal-linux-patcher"
+PATCHER="$PATCHER_DIR/scripts/imac-patcher"
+PATCHER_FIX="$REPO/patches/imac5k-patcher-linux-7.2.13.patch"
 FIRMWARE_REPO="${FIRMWARE_REPO:-gobijan/imac-pro-omarchy-firmware}"
 FW_DIR=/lib/firmware/brcm
 UCM_SYSTEM=/usr/share/alsa/ucm2
@@ -303,6 +305,15 @@ do_5k() {
     if [[ ! -x $PATCHER ]]; then
         say "5k: fetching the pinned upstream patcher (git submodule)"
         git -C "$REPO" submodule update --init
+    fi
+    # The pinned patcher's patches stop applying at Linux 7.2.13. Until the pin
+    # moves past upstream's fix, this repo carries it and puts it into the
+    # submodule's working tree.
+    if git -C "$PATCHER_DIR" apply --check "$PATCHER_FIX" 2>/dev/null; then
+        git -C "$PATCHER_DIR" apply "$PATCHER_FIX"
+        say "5k: pinned patcher fixed for Linux 7.2.13 and newer (patches/${PATCHER_FIX##*/})"
+    elif ! git -C "$PATCHER_DIR" apply --reverse --check "$PATCHER_FIX" 2>/dev/null; then
+        die "5k: patches/${PATCHER_FIX##*/} neither applies to the pinned patcher nor is already in it"
     fi
     "$PATCHER" --apply 5k
     do_display

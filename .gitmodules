@@ -1,3 +1,5 @@
 [submodule "vendor/imac5k-universal-linux-patcher"]
 	path = vendor/imac5k-universal-linux-patcher
 	url = https://github.com/MarkPronkin/imac5k-universal-linux-patcher
+	# install.sh puts patches/imac5k-patcher-linux-7.2.13.patch into its working tree.
+	ignore = dirty

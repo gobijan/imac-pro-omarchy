@@ -1,0 +1,40 @@
+diff --git a/patches/5k-latch-clear.patch b/patches/5k-latch-clear.patch
+index 229044e..fa3c736 100644
+--- a/patches/5k-latch-clear.patch
++++ b/patches/5k-latch-clear.patch
+@@ -246,15 +246,13 @@ No-op on hardware without the tiled-panel quirk.
+  void link_blank_all_dp_displays(struct dc *dc)
+  {
+  	unsigned int i;
+-@@ -2244,4 +2305,8 @@
+- 	update_psp_stream_config(pipe_ctx, true);
++@@ -2245,2 +2306,6 @@
+  	dc->hwss.blank_stream(pipe_ctx);
+ +
+ +	/* Stream is dark now and the link is still up: return the Apple 5K
+ +	 * panel latch to its cold-boot state before the link goes away. */
+ +	dp_write_tiled_stream_disable_latch(link);
+  
+- 	if (pipe_ctx->link_config.dp_tunnel_settings.should_use_dp_bw_allocation)
+ --- a/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+ +++ b/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+ @@ -1692,6 +1692,20 @@
+diff --git a/patches/imac5k-lean-core-7.2.x.patch b/patches/imac5k-lean-core-7.2.x.patch
+index e8b6c1e..6645eff 100644
+--- a/patches/imac5k-lean-core-7.2.x.patch
++++ b/patches/imac5k-lean-core-7.2.x.patch
+@@ -670,13 +670,11 @@ diff -ruN -x '.*' pristine7.2.2/drivers/gpu/drm/amd/display/dc/link/link_dpms.c
+  	} else {
+  		dm_helpers_mst_enable_stream_features(stream);
+  	}
+-@@ -2401,4 +2434,6 @@
+- 	update_psp_stream_config(pipe_ctx, true);
++@@ -2402,2 +2435,4 @@
+  	dc->hwss.blank_stream(pipe_ctx);
+ +
+ +	dp_write_tiled_stream_disable_latch(link);
+  
+- 	if (pipe_ctx->link_config.dp_tunnel_settings.should_use_dp_bw_allocation)
+ diff -ruN -x '.*' pristine7.2.2/drivers/gpu/drm/amd/display/dc/link/protocols/link_dp_capability.c core4/drivers/gpu/drm/amd/display/dc/link/protocols/link_dp_capability.c
+ --- a/drivers/gpu/drm/amd/display/dc/link/protocols/link_dp_capability.c	2026-08-28 09:25:22.000000000 +0300
+ +++ b/drivers/gpu/drm/amd/display/dc/link/protocols/link_dp_capability.c	2026-09-07 09:51:35.061579562 +0300

@@ -41,6 +41,10 @@ points at
 at commit `37eef00`. Its scripts are MIT-licensed, and its kernel patches are
 GPL-2.0. See that repository for details.
 
+`patches/imac5k-patcher-linux-7.2.13.patch` changes two of those kernel patches
+and is GPL-2.0, like them. `./install.sh 5k` applies it to the submodule's
+working tree.
+
 ## t2fanrd
 
 `./install.sh fans` builds
