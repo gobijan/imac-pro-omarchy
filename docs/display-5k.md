@@ -51,6 +51,7 @@ build takes 20 to 40 minutes and needs about 10 GB free.
 
 ```lua
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = omarchy_monitor_scale, bitdepth = 10, cm = "dp3" })
+hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = omarchy_monitor_scale, bitdepth = 10, cm = "dp3" })
 ```
 
 with `omarchy_monitor_scale = 2`:
@@ -68,8 +69,15 @@ A second rule keeps `DP-1`, the panel's right tile, disabled (see
 hl.monitor({ output = "DP-1", disabled = true })
 ```
 
-Omarchy's scale buttons only change the two scale values at the top of
-`monitors.lua`. They leave `bitdepth`, `cm` and the `DP-1` rule alone.
+The rule is there twice, once for every monitor and once for `eDP-1`, because
+of Omarchy's display panel. The panel no longer edits `monitors.lua`. It saves
+its choices in `~/.local/state/omarchy/monitors/settings` and applies them
+after every config load as a rule for `eDP-1`. Hyprland merges a rule into an
+existing one only when both name the same output. With just the catch-all
+rule, the panel's rule replaced it as a whole, and after the first
+`hyprctl reload` the panel ran at 8 bit and sRGB until the next boot. Every
+theme change runs a reload. With the `eDP-1` rule in place, the panel's rule
+only updates it, and `bitdepth` and `cm` stay.
 
 ## Verify
 
