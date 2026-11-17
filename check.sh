@@ -120,6 +120,19 @@ else
         && meh "turbo off only until the next boot (./install.sh cpu)" \
         || meh "turbo on: bursts of work clock up to $max_mhz MHz and lift the fans (./install.sh cpu)"
 fi
+# min_perf_pct counts in percent of the 4.2 GHz turbo clock: 76 % is the base
+# clock, the value in config/etc/tmpfiles.d/imacpro-cpu-floor.conf.
+min_perf="$(cat /sys/devices/system/cpu/intel_pstate/min_perf_pct 2>/dev/null)"
+min_mhz=$(( $(cat $cpufreq/cpuinfo_min_freq 2>/dev/null || echo 0) / 1000 ))
+if [[ -f /etc/tmpfiles.d/imacpro-cpu-floor.conf ]]; then
+    [[ ${min_perf:-0} -ge 76 ]] \
+        && ok "clock floor on, now and from every boot: a busy core never runs below $base_mhz MHz" \
+        || meh "the clock floor is set to come on at boot but is off now (./install.sh floor)"
+else
+    [[ ${min_perf:-0} -ge 76 ]] \
+        && meh "clock floor on only until the next boot (./install.sh floor)" \
+        || meh "no clock floor: the CPU idles at $min_mhz MHz, and Hyprland loses frames when a window opens (./install.sh floor)"
+fi
 
 section "Sleep"
 [[ $(cat /sys/power/mem_sleep 2>/dev/null) == *"[deep]"* ]] && ok "suspend uses deep (S3)" || meh "suspend mode: $(cat /sys/power/mem_sleep 2>/dev/null)"

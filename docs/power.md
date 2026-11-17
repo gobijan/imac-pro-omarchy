@@ -1,4 +1,4 @@
-# Power profile and turbo
+# Power profile, turbo and clock floor
 
 ## What Omarchy sets up
 
@@ -60,7 +60,8 @@ fans follow the package.
 [`/etc/tmpfiles.d/imacpro-cpu.conf`](../config/etc/tmpfiles.d/imacpro-cpu.conf),
 which writes it again at every boot. The CPU then runs at most at its base
 clock. The power profile still decides how eagerly it gets there, and at idle
-it still drops to 1.2 GHz. No package owns the file, so updates leave it alone.
+it still drops to 1.2 GHz, unless the [clock floor](#clock-floor) is set. No
+package owns the file, so updates leave it alone.
 
 ### Measured
 
@@ -86,6 +87,73 @@ the firmware throttling a hot CPU. Nothing else follows from it.
 Not yet tested across sleep. `./check.sh` shows whether turbo is off, now and
 from boot.
 
+## Clock floor
+
+With `balanced` the CPU drops to 1.2 GHz when it has little to do. From that
+clock Hyprland loses frames when a window opens, and the animation stutters
+right at its start.
+
+The animation itself is not the problem. With windows that hold a tiny
+buffer, and with windows that render on the GPU and hand over a GPU buffer
+(mpv), Hyprland lost no frame in any run. foot renders on the CPU and hands
+over each new picture as a memory buffer, which Hyprland copies to the GPU
+before it draws the next frame. At 5120×2880 a full-screen window is 56 MB.
+A new window brings one such buffer, and every window that changes size to
+make room brings another. At the idle clock Hyprland does not get that done
+within the 16.7 ms of one refresh.
+
+`./install.sh floor` sets the lowest clock a busy core may run at to the
+3.2 GHz base clock. It writes `76` to
+`/sys/devices/system/cpu/intel_pstate/min_perf_pct` and installs
+[`/etc/tmpfiles.d/imacpro-cpu-floor.conf`](../config/etc/tmpfiles.d/imacpro-cpu-floor.conf),
+which writes it again at every boot. The value counts in percent of the
+4.2 GHz turbo clock, and 76 % of that is 3.2 GHz. With turbo off, a core
+that has work runs at exactly 3.2 GHz. Cores without work sleep as before.
+
+### Measured
+
+A small Wayland client asked Hyprland when each of its frames reached the
+screen (`wp_presentation`). Two refresh intervals between two frames are one
+lost frame. On an otherwise empty workspace three foot windows opened one
+after another and closed again, each after 2 s of standstill. Every figure is
+one series of 18 such window events in three rounds, with the settings taking
+turns.
+
+| Floor | Lost frames in 18 window events |
+|---|---|
+| none: 1.2 GHz | 10 and 8 |
+| 2.1 GHz (`50`) | 2 |
+| 3.2 GHz (`76`) | 0 and 0 |
+
+What the floor costs at idle, each setting three times for 8 s in turn, CPU
+package from RAPL:
+
+| | no floor | 2.1 GHz | 3.2 GHz |
+|---|---|---|---|
+| CPU package | 22.5 W | 23.0 W | 24.0 W |
+| CPU package temperature | 52 to 53 °C | 52 °C | 54 °C |
+
+Eight seconds are too short for the temperature to settle, and the fans were
+not compared.
+
+The GPU's clocks play a smaller part. In a first, shorter series, with
+windows that hold a plain full-size buffer and the cpufreq governor
+`performance` in place of the floor, 1 lost frame per run was left where the
+stock setting lost 2 and 4. With the GPU forced to its highest clocks as well
+(`power_dpm_force_performance_level=high`) none was left. That costs about
+30 W at idle (46 to 54 W for the GPU instead of 15 to 23 W), so this repo
+leaves the GPU alone.
+
+One thing is open. At the start of the tests the GPU's memory clock dropped
+to 167 MHz at idle. Since the tests that switched the performance level to
+`high` or `manual` and back to `auto`, it has stayed at its top level,
+786 MHz, and the tables above were measured in that state. Whether it drops
+again after a reboot, and whether the floor then leaves a lost frame now and
+then, has not been measured.
+
+Not yet tested across sleep. `./check.sh` shows whether the floor is on, now
+and from boot.
+
 ## Back to stock
 
 ```bash
@@ -100,3 +168,10 @@ and at every login.
 ```
 
 This removes the tmpfiles rule and turns turbo back on right away.
+
+```bash
+./install.sh floor-stock
+```
+
+This removes the tmpfiles rule, and the CPU drops to 1.2 GHz at idle again
+right away.

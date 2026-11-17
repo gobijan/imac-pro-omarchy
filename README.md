@@ -27,6 +27,7 @@ so a reinstall takes minutes instead of a day of research.
 | Fan control | ✅ | Patched `t2fanrd`: idles at 800 instead of 1100 rpm, see [docs/fans.md](docs/fans.md) |
 | Power profile | ✅ | `balanced` instead of Omarchy's `performance`: cooler, quieter, a few watts less (`./install.sh power`), see [docs/power.md](docs/power.md) |
 | Turbo off | ✅ | The CPU stays at its 3.2 GHz base clock: under full load 68 instead of 86 °C, fans at 1900 instead of 2500 rpm (`./install.sh cpu`), see [docs/power.md](docs/power.md) |
+| Windows open without lost frames | ✅ | A busy core never clocks below the 3.2 GHz base clock. From the 1.2 GHz idle clock Hyprland lost 18 frames in 36 window animations, with the floor none (`./install.sh floor`), see [docs/power.md](docs/power.md) |
 
 Tested in October 2026 on an iMac Pro with a Radeon Pro Vega 64 and 32 GB RAM,
 running Omarchy with Limine and Hyprland 0.56.2, `linux-t2` 7.2.11 and
@@ -85,12 +86,13 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
    ```
 
    Each step also runs on its own: `firmware`, `audio`, `udev`, `fans`, `sleep`,
-   `gmux`, `video`, `power`, `cpu`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
+   `gmux`, `video`, `power`, `cpu`, `floor`, `display`, `5k`. `./install.sh fans-stock` returns to Omarchy's own
    fan daemon, `./install.sh sleep-stock` removes the Thunderbolt sleep hook,
    `./install.sh gmux-stock` unmasks the gmux GPE,
    `./install.sh video-stock` the YouTube H.264 extension,
    `./install.sh power-stock` lets Omarchy pick `performance` again,
-   and `./install.sh cpu-stock` turns turbo back on.
+   `./install.sh cpu-stock` turns turbo back on,
+   and `./install.sh floor-stock` lets the CPU drop to its idle clock again.
 
 4. Check everything:
 
@@ -100,8 +102,8 @@ storage, `./backup-firmware.sh backup` writes an archive for a USB stick, and
 
 ## After updates
 
-The fans, the Thunderbolt sleep hook, the gmux mask and turbo off need
-nothing: all four live outside pacman's reach and survive package and Omarchy
+The fans, the Thunderbolt sleep hook, the gmux mask, turbo off and the clock
+floor need nothing: all five live outside pacman's reach and survive package and Omarchy
 updates ([docs/fans.md](docs/fans.md), [docs/sleep.md](docs/sleep.md),
 [docs/power.md](docs/power.md)).
 
@@ -123,12 +125,12 @@ cleanly until upstream has ported it, and you keep the stock 4K picture.
 ## Layout
 
 ```text
-install.sh              firmware | audio | udev | fans | sleep | gmux | video | power | cpu | display | 5k | all; backs up every file it replaces
+install.sh              firmware | audio | udev | fans | sleep | gmux | video | power | cpu | floor | display | 5k | all; backs up every file it replaces
 check.sh                read-only health check (display, audio, video, Wi-Fi, fans, power, sleep)
 backup-firmware.sh      private-repo / backup / restore for Apple's Broadcom firmware
 measure-speakers.py     sweep through the speakers, recorded with the built-in mics; repeats the bass measurement (needs uv)
 config/home/            files that go to ~ (Hyprland, PipeWire, UCM, systemd user drop-ins, Chromium extension)
-config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config, kernel command line, turbo off)
+config/etc/             files that go to /etc (udev rule, fan daemon and sleep hook units, fan config, kernel command line, turbo off, clock floor)
 config/usr/local/       the Thunderbolt sleep hook script
 patches/                t2fanrd-quiet.patch: lower idle fan speed for t2fanrd
                         imac5k-patcher-linux-7.2.13.patch: lets the pinned 5K patcher build on Linux 7.2.13 and newer

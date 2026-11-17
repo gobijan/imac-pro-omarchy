@@ -17,9 +17,11 @@
 #   ./install.sh power-stock let Omarchy pick performance again (no sudo)
 #   ./install.sh cpu         turbo off: the CPU stays at its base clock, now and at every boot (sudo)
 #   ./install.sh cpu-stock   turbo on again (sudo)
+#   ./install.sh floor       the CPU never clocks below its base clock, so windows open without lost frames (sudo)
+#   ./install.sh floor-stock let the CPU drop to its idle clock again (sudo)
 #   ./install.sh display     Hyprland monitor rule: 5K at scale 2, 10 bpc, Display P3
 #   ./install.sh 5k          build the patched amdgpu module (sudo, 20-40 min), then display
-#   ./install.sh all         firmware + audio + udev + fans + sleep + gmux + video + power + cpu + 5k
+#   ./install.sh all         firmware + audio + udev + fans + sleep + gmux + video + power + cpu + floor + 5k
 #
 # Every replaced file is backed up next to itself as <name>.bak-<timestamp>.
 # Run it as your desktop user; it calls sudo only where it has to.
@@ -48,13 +50,15 @@ CHROMIUM_FLAGS="$HOME/.config/chromium-flags.conf"
 H264_EXT="$HOME/.local/share/imac-pro-omarchy/chromium/youtube-h264"
 CPU_TMPFILES=/etc/tmpfiles.d/imacpro-cpu.conf
 NO_TURBO=/sys/devices/system/cpu/intel_pstate/no_turbo
+FLOOR_TMPFILES=/etc/tmpfiles.d/imacpro-cpu-floor.conf
+MIN_PERF=/sys/devices/system/cpu/intel_pstate/min_perf_pct
 POWER_STATE="${OMARCHY_POWERPROFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/powerprofiles}/ac"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 say()  { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '4,22p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '4,24p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # put_file <source> <destination> [sudo]
 put_file() {
@@ -292,6 +296,22 @@ do_cpu_stock() {
     say "cpu-stock: turbo on again; the CPU clocks up to $(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq) / 1000 )) MHz"
 }
 
+# min_perf_pct resets at every boot too. From the idle clock Hyprland loses
+# frames whenever a window hands it a large buffer to copy to the GPU.
+do_floor() {
+    [[ -e $MIN_PERF ]] || die "floor: no $MIN_PERF; this step expects the intel_pstate driver"
+    put_file "$CONFIG$FLOOR_TMPFILES" "$FLOOR_TMPFILES" sudo
+    sudo systemd-tmpfiles --create "$FLOOR_TMPFILES"
+    say "floor: now and from every boot the CPU stays at or above its base clock of $(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/base_frequency) / 1000 )) MHz"
+}
+
+do_floor_stock() {
+    sudo rm -f "$FLOOR_TMPFILES"
+    # The driver raises any lower value to the CPU's own minimum.
+    echo 0 | sudo tee "$MIN_PERF" >/dev/null
+    say "floor-stock: at idle the CPU drops to $(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq) / 1000 )) MHz again"
+}
+
 do_display() {
     put_file "$CONFIG/home/.config/hypr/monitors.lua" "$HOME/.config/hypr/monitors.lua"
     say "display: Hyprland reloads monitors.lua by itself"
@@ -336,7 +356,9 @@ for step in "$@"; do
         power-stock) do_power_stock ;;
         cpu) do_cpu ;;
         cpu-stock) do_cpu_stock ;;
-        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_gmux; do_video; do_power; do_cpu; do_5k ;;
+        floor) do_floor ;;
+        floor-stock) do_floor_stock ;;
+        all) do_firmware; do_audio; do_udev; do_fans; do_sleep; do_gmux; do_video; do_power; do_cpu; do_floor; do_5k ;;
         -h|--help) usage ;;
         *) usage; exit 2 ;;
     esac
